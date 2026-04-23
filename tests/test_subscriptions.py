@@ -3,54 +3,6 @@ from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine
-
-from podking.models import Base, User, UserSettings
-
-
-@pytest.fixture
-async def seeded_client(engine: AsyncEngine) -> AsyncClient:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    from podking.db import get_engine, get_sessionmaker
-    from podking.main import create_app
-
-    get_engine.cache_clear()  # type: ignore[attr-defined]
-    get_sessionmaker.cache_clear()  # type: ignore[attr-defined]
-
-    sm = get_sessionmaker()
-    async with sm() as db:
-        user = User(
-            email="allowed@example.com",
-            google_sub="google-sub-sub-123",
-            display_name="Test",
-        )
-        db.add(user)
-        await db.flush()
-        db.add(UserSettings(user_id=user.id, system_prompt=""))
-        await db.commit()
-        user_id = user.id
-
-    from httpx import ASGITransport, AsyncClient as AC
-
-    app = create_app()
-    client = AC(transport=ASGITransport(app=app), base_url="http://test")
-    client.cookies.set("session", _make_session(str(user_id)))
-    return client
-
-
-def _make_session(user_id: str) -> str:
-    import base64
-    import json
-
-    from itsdangerous import TimestampSigner
-
-    secret = "test-secret-at-least-32-bytes-long-xxxxx"
-    signer = TimestampSigner(secret, salt="cookie-session")
-    payload = json.dumps({"user_id": user_id})
-    encoded = base64.b64encode(payload.encode()).decode()
-    return signer.sign(encoded).decode()
 
 
 @pytest.mark.asyncio

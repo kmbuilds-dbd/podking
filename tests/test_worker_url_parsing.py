@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import pytest
-
-from podking.worker.youtube import extract_video_id, YtDlpError
-from podking.worker.podcast import parse_apple_podcast_ids, PodcastError
+from podking.worker.podcast import PodcastError, parse_apple_podcast_ids
 from podking.worker.runner import _parse_duration
+from podking.worker.youtube import YtDlpError, extract_video_id
 
 
 class TestExtractVideoId:
