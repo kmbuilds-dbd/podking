@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "packages": {
+    "node": "22",
+    "python": "3.13"
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        "cd frontend && npm ci --omit=dev",
+        "uv sync --no-dev"
+      ]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": ["cd frontend && npm run build"]
+    }
+  },
+  "deploy": {
+    "startCommand": "uv run alembic upgrade head && uv run uvicorn podking.main:app --host 0.0.0.0 --port $PORT"
+  }
+}
