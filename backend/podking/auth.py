@@ -1,7 +1,8 @@
-from authlib.integrations.starlette_client import OAuth
+from authlib.integrations.starlette_client import OAuth  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import Response
 
 from podking.config import get_settings
 from podking.deps import get_db
@@ -21,13 +22,13 @@ oauth.register(
 
 
 @router.get("/login")
-async def login(request: Request):  # type: ignore[return]
+async def login(request: Request) -> Response:
     redirect_uri = get_settings().google_redirect_uri
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, redirect_uri)  # type: ignore[no-any-return]
 
 
 @router.get("/callback")
-async def callback(request: Request, db: AsyncSession = Depends(get_db)):  # type: ignore[return]
+async def callback(request: Request, db: AsyncSession = Depends(get_db)) -> Response:
     token = await oauth.google.authorize_access_token(request)
     info = token.get("userinfo") or {}
     email = (info.get("email") or "").lower()

@@ -1,13 +1,12 @@
 import pytest
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-from sqlalchemy.orm import selectinload
-
 from podking.crypto import decrypt
 from podking.models import Base, User
 from podking.repositories.users import upsert_user_from_google
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlalchemy.orm import selectinload
 
 
 @pytest.fixture

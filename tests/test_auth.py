@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.responses import RedirectResponse
 from httpx import ASGITransport, AsyncClient
+from podking.models import Base, User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-
-from podking.models import Base, User
 
 
 @pytest.fixture

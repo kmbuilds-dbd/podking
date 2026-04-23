@@ -1,11 +1,10 @@
 import pytest
 from fastapi import Depends, Request
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-
 from podking.deps import current_user
 from podking.models import Base, User
 from podking.repositories.users import upsert_user_from_google
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 
 @pytest.fixture
