@@ -18,6 +18,12 @@ dependencies = [
     "structlog>=24.4",
     "python-multipart>=0.0.19",
     "psycopg2-binary>=2.9",
+    "yt-dlp>=2024.1.1",
+    "feedparser>=6.0",
+    "anthropic>=0.40",
+    "elevenlabs>=1.0",
+    "voyageai>=0.3",
+    "sse-starlette>=2.1",
 ]
 
 [dependency-groups]
@@ -45,6 +51,10 @@ ignore = ["B008"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["pgvector.*", "feedparser", "voyageai", "voyageai.*"]
+ignore_missing_imports = true
 
 [tool.uv]
 package = true

@@ -5,6 +5,9 @@ import { UnauthenticatedError } from "@/api"
 import Login from "@/pages/Login"
 import Home from "@/pages/Home"
 import Settings from "@/pages/Settings"
+import SummaryDetail from "@/pages/SummaryDetail"
+import Search from "@/pages/Search"
+import Subscriptions from "@/pages/Subscriptions"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const me = useMe()
@@ -20,6 +23,9 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+      <Route path="/summary/:id" element={<RequireAuth><SummaryDetail /></RequireAuth>} />
+      <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />
+      <Route path="/subscriptions" element={<RequireAuth><Subscriptions /></RequireAuth>} />
     </Routes>
   )
 }
