@@ -5,10 +5,12 @@ from podking import auth
 from podking.api import health, me
 from podking.api import settings as settings_api
 from podking.config import get_settings
+from podking.logging import configure_logging
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings.log_level)
     app = FastAPI(title="podking")
     app.add_middleware(
         SessionMiddleware,
