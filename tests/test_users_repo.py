@@ -1,10 +1,9 @@
 import uuid
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-
 from podking.models import Base
 from podking.repositories.users import upsert_user_from_google
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 
 @pytest.fixture

@@ -1,6 +1,5 @@
 import pytest
 from cryptography.fernet import InvalidToken
-
 from podking.crypto import decrypt, encrypt
 
 

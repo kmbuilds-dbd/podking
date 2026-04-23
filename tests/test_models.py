@@ -1,10 +1,9 @@
 import uuid
 
 import pytest
+from podking.models import Base, User, UserSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-
-from podking.models import Base, User, UserSettings
 
 
 @pytest.fixture
