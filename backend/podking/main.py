@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
+from podking import auth
 from podking.api import health
 from podking.config import get_settings
 
@@ -16,6 +17,7 @@ def create_app() -> FastAPI:
         max_age=30 * 24 * 3600,
     )
     app.include_router(health.router)
+    app.include_router(auth.router)
     return app
 
 
