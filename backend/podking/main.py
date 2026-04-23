@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from podking import auth
-from podking.api import health
+from podking.api import health, me
 from podking.config import get_settings
 
 
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(me.router)
     return app
 
 
