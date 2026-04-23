@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,13 @@ class Settings(BaseSettings):
     max_duration_seconds: int = 14400
     audio_storage_path: str = "./data/audio"
     log_level: str = "INFO"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _add_asyncpg_driver(cls, v: object) -> object:
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     @property
     def allowed_email_set(self) -> set[str]:
