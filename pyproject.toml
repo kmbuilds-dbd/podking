@@ -38,7 +38,19 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+# B008 flags Depends(...) in FastAPI default args, which is idiomatic.
+ignore = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/podking"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
