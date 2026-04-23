@@ -17,6 +17,7 @@ dependencies = [
     "cryptography>=43",
     "structlog>=24.4",
     "python-multipart>=0.0.19",
+    "psycopg2-binary>=2.9",
 ]
 
 [dependency-groups]
