@@ -248,6 +248,7 @@ async def _run_youtube_job(job: Job) -> None:
         duration_seconds=duration,
         thumbnail_url=str(meta.get("thumbnail") or ""),
     )
+    await _link_job_episode(job.id, episode_id)
 
     # Check for captions
     await _update_progress(job.id, 10, "Checking for captions…")
@@ -331,6 +332,7 @@ async def _run_podcast_job(job: Job) -> None:
         duration_seconds=duration,
         thumbnail_url=None,
     )
+    await _link_job_episode(job.id, episode_id)
 
     await _update_progress(job.id, 15, "Downloading audio…")
     suffix = ".mp3" if "mp3" in enclosure_url.lower() else ".audio"
@@ -411,6 +413,17 @@ async def _upsert_episode(
             await db.commit()
             await db.refresh(episode)
         return episode.id
+
+
+async def _link_job_episode(job_id: uuid.UUID, episode_id: uuid.UUID) -> None:
+    """Set jobs.episode_id as soon as episode metadata is available, so the UI
+    can render the title while the rest of the pipeline runs."""
+    sm = get_sessionmaker()
+    async with sm() as db:
+        job = await db.get(Job, job_id)
+        if job is not None and job.episode_id is None:
+            job.episode_id = episode_id
+            await db.commit()
 
 
 async def _upsert_audio_path(episode_id: uuid.UUID, audio_path: str) -> None:

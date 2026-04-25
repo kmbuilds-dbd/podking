@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from podking.deps import current_user, get_db
 from podking.models import Episode, Job, Transcript, User
-from podking.schemas import JobCreate, JobResponse, ResumamarizeCreate
+from podking.schemas import (
+    JobCreate,
+    JobEpisodeMini,
+    JobPatch,
+    JobResponse,
+    ResumamarizeCreate,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -24,7 +32,25 @@ def _detect_kind(url: str) -> str:
 
 
 def _job_response(job: Job) -> JobResponse:
-    return JobResponse.model_validate(job)
+    episode_mini: JobEpisodeMini | None = None
+    if job.episode is not None:
+        episode_mini = JobEpisodeMini.model_validate(job.episode)
+    return JobResponse(
+        id=job.id,
+        kind=job.kind,
+        source_url=job.source_url,
+        episode_id=job.episode_id,
+        episode=episode_mini,
+        status=job.status,
+        progress_pct=job.progress_pct,
+        progress_message=job.progress_message,
+        error=job.error,
+        archived=job.archived_at is not None,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
 
 
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -80,12 +106,17 @@ async def create_resummarize_job(
 
 @router.get("/jobs", response_model=list[JobResponse])
 async def list_jobs(
+    archived: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> list[JobResponse]:
+    archive_filter = (
+        Job.archived_at.is_not(None) if archived else Job.archived_at.is_(None)
+    )
     result = await db.execute(
         select(Job)
-        .where(Job.user_id == user.id)
+        .where(Job.user_id == user.id, archive_filter)
+        .options(selectinload(Job.episode))
         .order_by(Job.created_at.desc())
         .limit(100)
     )
@@ -98,10 +129,57 @@ async def get_job(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> JobResponse:
-    job = await db.get(Job, job_id)
+    result = await db.execute(
+        select(Job)
+        .where(Job.id == job_id)
+        .options(selectinload(Job.episode))
+    )
+    job = result.scalar_one_or_none()
     if job is None or job.user_id != user.id:
         raise HTTPException(status_code=404, detail="job not found")
     return _job_response(job)
+
+
+@router.patch("/jobs/{job_id}", response_model=JobResponse)
+async def patch_job(
+    job_id: uuid.UUID,
+    body: JobPatch,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> JobResponse:
+    result = await db.execute(
+        select(Job)
+        .where(Job.id == job_id)
+        .options(selectinload(Job.episode))
+    )
+    job = result.scalar_one_or_none()
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="job not found")
+    job.archived_at = datetime.now(UTC) if body.archived else None
+    await db.commit()
+    await db.refresh(job)
+    return _job_response(job)
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+async def delete_job(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> None:
+    job = await db.get(Job, job_id)
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    if job.episode_id is not None:
+        episode = await db.get(Episode, job.episode_id)
+        if episode is not None and episode.user_id == user.id:
+            if episode.audio_path:
+                Path(episode.audio_path).unlink(missing_ok=True)
+            await db.delete(episode)  # cascades transcript, summaries, summary_tags
+
+    await db.delete(job)
+    await db.commit()
 
 
 async def mark_interrupted_jobs_failed(db: AsyncSession) -> None:

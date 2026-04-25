@@ -29,15 +29,25 @@ export class UnauthenticatedError extends Error {
 
 // ── types ──────────────────────────────────────────────────────────────────
 
+export interface JobEpisodeMini {
+  id: string
+  title: string | null
+  author: string | null
+  thumbnail_url: string | null
+  source_url: string
+}
+
 export interface Job {
   id: string
   kind: string
   source_url: string | null
   episode_id: string | null
+  episode: JobEpisodeMini | null
   status: string
   progress_pct: number
   progress_message: string | null
   error: string | null
+  archived: boolean
   created_at: string
   updated_at: string
   started_at: string | null
@@ -106,7 +116,17 @@ export interface TagInfo {
 export const createJob = (source_url: string) =>
   api<Job>("/api/jobs", { method: "POST", body: JSON.stringify({ source_url }) })
 
-export const listJobs = () => api<Job[]>("/api/jobs")
+export const listJobs = (opts?: { archived?: boolean }) =>
+  api<Job[]>(`/api/jobs?archived=${opts?.archived ? "true" : "false"}`)
+
+export const deleteJob = (id: string) =>
+  api<void>(`/api/jobs/${id}`, { method: "DELETE" })
+
+export const setJobArchived = (id: string, archived: boolean) =>
+  api<Job>(`/api/jobs/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ archived }),
+  })
 export const getJob = (id: string) => api<Job>(`/api/jobs/${id}`)
 
 export const createResumamarize = (episode_id: string) =>

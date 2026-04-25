@@ -35,21 +35,37 @@ class ResumamarizeCreate(BaseModel):
     episode_id: uuid.UUID
 
 
+class JobEpisodeMini(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    author: str | None
+    thumbnail_url: str | None
+    source_url: str
+
+    model_config = {"from_attributes": True}
+
+
 class JobResponse(BaseModel):
     id: uuid.UUID
     kind: str
     source_url: str | None
     episode_id: uuid.UUID | None
+    episode: JobEpisodeMini | None
     status: str
     progress_pct: int
     progress_message: str | None
     error: str | None
+    archived: bool
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class JobPatch(BaseModel):
+    archived: bool
 
 
 # ── episodes ──────────────────────────────────────────────────────────────────
