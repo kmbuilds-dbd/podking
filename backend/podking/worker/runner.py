@@ -60,6 +60,8 @@ async def _process_next_job() -> None:
             await _run_podcast_job(job)
         elif job.kind == "resummarize":
             await _run_resummarize_job(job)
+        elif job.kind == "feed_episode":
+            await _run_feed_episode_job(job)
     except Exception as exc:
         await _fail_job(job.id, str(exc))
         log.exception("Job %s failed", job.id)
@@ -338,6 +340,61 @@ async def _run_podcast_job(job: Job) -> None:
     suffix = ".mp3" if "mp3" in enclosure_url.lower() else ".audio"
     audio_path = audio_dir / f"{episode_id}{suffix}"
     await podcast.download_audio(enclosure_url, audio_path)
+    await _upsert_audio_path(episode_id, str(audio_path))
+
+    settings = await _get_settings(job.user_id)
+    el_key = _require_key(settings.elevenlabs_api_key_encrypted, "ElevenLabs")
+
+    await _update_progress(job.id, 40, "Transcribing audio…")
+    await _update_job_status(job.id, "transcribing")
+
+    from podking.worker.elevenlabs_client import transcribe
+    result = await transcribe(audio_path, el_key)
+    transcript_text = str(result["text"])
+
+    await _upsert_transcript(episode_id, "elevenlabs", transcript_text)
+    await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
+    await _complete_job(job.id, episode_id)
+
+
+# ── Feed episode job (subscription-driven podcast) ────────────────────────────
+
+async def _run_feed_episode_job(job: Job) -> None:
+    """Process a podcast episode using a pre-resolved audio_url stored on
+    the episode row by the subscription episode-process endpoint."""
+    from podking.worker import podcast as podcast_helpers
+
+    if job.episode_id is None:
+        raise RuntimeError("feed_episode job missing episode_id")
+
+    settings_cfg = get_settings()
+    audio_dir = Path(settings_cfg.audio_storage_path)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        episode = await db.get(Episode, job.episode_id)
+        if episode is None:
+            raise RuntimeError("episode row missing for feed_episode job")
+        if episode.user_id != job.user_id:
+            raise RuntimeError("episode does not belong to job user")
+        audio_url = episode.audio_url
+        if not audio_url:
+            raise RuntimeError("episode missing audio_url")
+        episode_id = episode.id
+        duration = episode.duration_seconds or 0
+
+    if duration and duration > settings_cfg.max_duration_seconds:
+        raise RuntimeError(
+            f"Episode exceeds configured max duration ({settings_cfg.max_duration_seconds}s)"
+        )
+
+    await _link_job_episode(job.id, episode_id)
+
+    await _update_progress(job.id, 15, "Downloading audio…")
+    suffix = ".mp3" if "mp3" in audio_url.lower() else ".audio"
+    audio_path = audio_dir / f"{episode_id}{suffix}"
+    await podcast_helpers.download_audio(audio_url, audio_path)
     await _upsert_audio_path(episode_id, str(audio_path))
 
     settings = await _get_settings(job.user_id)

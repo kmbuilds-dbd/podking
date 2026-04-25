@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   listSubscriptions,
@@ -26,8 +27,8 @@ function SubRow({ sub }: { sub: Subscription }) {
   })
 
   return (
-    <div className="flex items-center gap-3 border rounded p-3">
-      <div className="flex-1 min-w-0">
+    <div className="flex items-center gap-3 border rounded p-3 hover:bg-accent/40 transition-colors">
+      <Link to={`/subscriptions/${sub.id}`} className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{sub.title ?? sub.feed_url}</p>
         <p className="text-xs text-muted-foreground">
           {sub.kind === "youtube_channel" ? "YouTube" : "Podcast"} ·{" "}
@@ -35,7 +36,7 @@ function SubRow({ sub }: { sub: Subscription }) {
             ? `checked ${new Date(sub.last_checked_at).toLocaleDateString()}`
             : "never checked"}
         </p>
-      </div>
+      </Link>
       <Button
         variant="outline"
         size="sm"

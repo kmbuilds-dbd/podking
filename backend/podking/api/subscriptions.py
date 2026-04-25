@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from podking.config import get_settings
 from podking.deps import current_user, get_db
-from podking.models import Subscription, User
-from podking.schemas import SubscriptionCreate, SubscriptionPatch, SubscriptionResponse
+from podking.models import Episode, Job, Subscription, User
+from podking.schemas import (
+    JobResponse,
+    SubscriptionCreate,
+    SubscriptionPatch,
+    SubscriptionResponse,
+)
+from podking.worker import feed as feed_helpers
 from podking.worker import listennotes_client, podcast as podcast_helpers
 
 router = APIRouter(prefix="/api")
@@ -191,3 +200,162 @@ async def search_podcasts(
         for r in raw
         if r.get("itunes_id")
     ]
+
+
+# ── subscription episode listing + per-episode summarize ──────────────────────
+
+
+class ProcessEpisodeBody(BaseModel):
+    external_id: str
+
+
+def _serialize_episode(ep: dict[str, object], processed_external_ids: set[str]) -> dict[str, object]:
+    return {
+        "external_id": ep["external_id"],
+        "title": ep.get("title"),
+        "author": ep.get("author"),
+        "published_at_ms": ep.get("published_at_ms"),
+        "duration_seconds": ep.get("duration_seconds"),
+        "thumbnail": ep.get("thumbnail"),
+        "source_url": ep.get("source_url"),
+        "audio_url": ep.get("audio_url"),
+        "description": ep.get("description"),
+        "processed": ep["external_id"] in processed_external_ids,
+    }
+
+
+@router.get("/subscriptions/{sub_id}/episodes")
+async def list_subscription_episodes(
+    sub_id: uuid.UUID,
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict[str, object]:
+    """Return recent episodes for a subscription's feed plus subscription
+    metadata. The `processed` flag tells the UI whether we already have
+    a summary for that episode."""
+    sub = await db.get(Subscription, sub_id)
+    if sub is None or sub.user_id != user.id:
+        raise HTTPException(status_code=404, detail="subscription not found")
+
+    episodes = await asyncio.to_thread(
+        feed_helpers.parse_feed_episodes, sub.feed_url, sub.kind, limit
+    )
+
+    source_type = "youtube" if sub.kind == "youtube_channel" else "podcast"
+    external_ids = [e["external_id"] for e in episodes]
+    processed_external_ids: set[str] = set()
+    if external_ids:
+        result = await db.execute(
+            select(Episode.external_id).where(
+                Episode.user_id == user.id,
+                Episode.source_type == source_type,
+                Episode.external_id.in_(external_ids),
+            )
+        )
+        processed_external_ids = {row[0] for row in result.all()}
+
+    return {
+        "subscription": SubscriptionResponse.model_validate(sub).model_dump(mode="json"),
+        "episodes": [_serialize_episode(e, processed_external_ids) for e in episodes],
+    }
+
+
+@router.post(
+    "/subscriptions/{sub_id}/episodes/process",
+    response_model=JobResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def process_subscription_episode(
+    sub_id: uuid.UUID,
+    body: ProcessEpisodeBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> JobResponse:
+    """Find the requested episode in the subscription's feed and enqueue a
+    summarization job for it. For YouTube channels this is a normal
+    `youtube` job with the watch URL; for podcasts a `feed_episode` job
+    that uses the enclosure URL we just resolved."""
+    sub = await db.get(Subscription, sub_id)
+    if sub is None or sub.user_id != user.id:
+        raise HTTPException(status_code=404, detail="subscription not found")
+
+    episodes = await asyncio.to_thread(
+        feed_helpers.parse_feed_episodes, sub.feed_url, sub.kind, 100
+    )
+    match = next((e for e in episodes if e["external_id"] == body.external_id), None)
+    if match is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Episode not found in feed (it may have rolled off the recent window).",
+        )
+
+    if sub.kind == "youtube_channel":
+        job = Job(
+            user_id=user.id,
+            kind="youtube",
+            source_url=str(match["source_url"]),
+            status="queued",
+        )
+    else:
+        # Podcast feed-episode: persist Episode row with audio_url so the
+        # worker can download directly without re-resolving an Apple URL.
+        external_id = str(match["external_id"])
+        existing = await db.execute(
+            select(Episode).where(
+                Episode.user_id == user.id,
+                Episode.source_type == "podcast",
+                Episode.external_id == external_id,
+            )
+        )
+        episode = existing.scalar_one_or_none()
+        published_at = None
+        if match.get("published_at_ms"):
+            published_at = datetime.fromtimestamp(
+                match["published_at_ms"] / 1000, tz=timezone.utc  # type: ignore[operator]
+            )
+        if episode is None:
+            episode = Episode(
+                user_id=user.id,
+                source_type="podcast",
+                source_url=str(match.get("source_url") or match.get("audio_url") or sub.feed_url),
+                external_id=external_id,
+                title=match.get("title"),  # type: ignore[arg-type]
+                author=match.get("author"),  # type: ignore[arg-type]
+                duration_seconds=match.get("duration_seconds"),  # type: ignore[arg-type]
+                thumbnail_url=match.get("thumbnail"),  # type: ignore[arg-type]
+                audio_url=str(match["audio_url"]),
+                published_at=published_at,
+            )
+            db.add(episode)
+            await db.flush()
+        else:
+            episode.audio_url = str(match["audio_url"])
+
+        job = Job(
+            user_id=user.id,
+            kind="feed_episode",
+            source_url=str(match.get("source_url") or match["audio_url"]),
+            episode_id=episode.id,
+            status="queued",
+        )
+
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    return JobResponse(
+        id=job.id,
+        kind=job.kind,
+        source_url=job.source_url,
+        episode_id=job.episode_id,
+        episode=None,
+        status=job.status,
+        progress_pct=job.progress_pct,
+        progress_message=job.progress_message,
+        error=job.error,
+        archived=job.archived_at is not None,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )

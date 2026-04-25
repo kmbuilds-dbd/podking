@@ -100,6 +100,7 @@ class Episode(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audio_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -119,7 +120,8 @@ class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('youtube', 'podcast', 'resummarize')", name="ck_job_kind"
+            "kind IN ('youtube', 'podcast', 'resummarize', 'feed_episode')",
+            name="ck_job_kind",
         ),
         CheckConstraint(
             "status IN ('queued','fetching','transcribing','summarizing','embedding','done','failed')",  # noqa: E501

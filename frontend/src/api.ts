@@ -199,3 +199,30 @@ export interface PodcastSearchResult {
 
 export const searchPodcasts = (q: string) =>
   api<PodcastSearchResult[]>(`/api/podcast-search?q=${encodeURIComponent(q)}`)
+
+export interface FeedEpisode {
+  external_id: string
+  title: string | null
+  author: string | null
+  published_at_ms: number | null
+  duration_seconds: number | null
+  thumbnail: string | null
+  source_url: string | null
+  audio_url: string | null
+  description: string | null
+  processed: boolean
+}
+
+export interface SubscriptionEpisodesResponse {
+  subscription: Subscription
+  episodes: FeedEpisode[]
+}
+
+export const listSubscriptionEpisodes = (id: string) =>
+  api<SubscriptionEpisodesResponse>(`/api/subscriptions/${id}/episodes`)
+
+export const processSubscriptionEpisode = (id: string, external_id: string) =>
+  api<Job>(`/api/subscriptions/${id}/episodes/process`, {
+    method: "POST",
+    body: JSON.stringify({ external_id }),
+  })
