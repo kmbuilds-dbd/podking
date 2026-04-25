@@ -50,12 +50,18 @@ export default function Settings() {
       <h1 className="text-xl font-semibold">Settings</h1>
 
       <div className="space-y-2">
-        <Label>System prompt</Label>
+        <Label>Analysis style guidance</Label>
+        <p className="text-xs text-muted-foreground">
+          Shape <em>how</em> Claude analyzes the transcript — depth, focus, tone, what to emphasize.
+          Output structure is fixed: <code>tldr</code>, <code>key_points</code>, <code>quotes</code>,
+          <code> suggested_tags</code>. Don't include format directives or output-shape instructions
+          here — they'll be ignored.
+        </p>
         <Textarea
           rows={8}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="You are a meticulous note-taker. Summarize as TL;DR, 3–5 key points, and notable quotes."
+          placeholder="Focus on actionable insights. Surface specific numbers, names, and arguments. Distinguish strong claims from speculation. Prefer dense, substantive bullets over filler."
         />
       </div>
 
