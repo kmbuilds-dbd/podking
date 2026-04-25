@@ -306,7 +306,19 @@ async def _run_podcast_job(job: Job) -> None:
     feed = feedparser.parse(feed_url)
     entry = podcast.find_episode_in_feed(feed, episode_id_str)
     if entry is None:
-        raise RuntimeError("Episode not found in feed")
+        # Apple's `?i=` is an iTunes track ID, not the RSS feed's guid; for
+        # most feeds those don't line up. Fall back to scraping Apple's page
+        # for the episode title and matching that into the feed.
+        await _update_progress(job.id, 12, "Resolving episode via Apple page…")
+        meta = await podcast.fetch_apple_episode_metadata(source_url)
+        if meta.get("title"):
+            entry = podcast.find_episode_by_title(feed, str(meta["title"]))
+        if entry is None:
+            raise RuntimeError(
+                "Episode not found in feed (matched neither guid nor title). "
+                "Try subscribing to the podcast and summarizing from the "
+                "subscription page instead."
+            )
 
     duration_str = getattr(entry, "itunes_duration", None) or "0"
     duration = _parse_duration(str(duration_str))
