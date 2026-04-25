@@ -185,3 +185,17 @@ export const patchSubscription = (id: string, active: boolean) =>
     method: "PATCH",
     body: JSON.stringify({ active }),
   })
+
+export interface PodcastSearchResult {
+  id: string
+  title: string
+  publisher: string | null
+  description: string | null
+  image: string | null
+  itunes_id: number
+  total_episodes: number | null
+  listennotes_url: string | null
+}
+
+export const searchPodcasts = (q: string) =>
+  api<PodcastSearchResult[]>(`/api/podcast-search?q=${encodeURIComponent(q)}`)

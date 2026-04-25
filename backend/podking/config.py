@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     max_duration_seconds: int = 14400
     audio_storage_path: str = "./data/audio"
     log_level: str = "INFO"
+    listen_notes_api_key: str = ""
 
     @field_validator("database_url", mode="before")
     @classmethod

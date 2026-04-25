@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/api"
 import { TopNav } from "@/components/TopNav"
@@ -41,16 +42,30 @@ export default function Settings() {
     },
   })
 
-  if (!settings.data) return <div className="p-6">Loading…</div>
-
   const keyLabel = (set: boolean, name: string) =>
     set ? `•••• ${name} set` : `${name} not set`
+
+  if (!settings.data)
+    return (
+      <div className="min-h-screen">
+        <TopNav />
+        <div className="max-w-2xl mx-auto p-6">Loading…</div>
+      </div>
+    )
 
   return (
     <div className="min-h-screen">
       <TopNav />
       <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <h1 className="text-xl font-semibold">Settings</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Settings</h1>
+          <Link
+            to="/"
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Back to Library
+          </Link>
+        </div>
 
       <div className="space-y-2">
         <Label>Analysis style guidance</Label>

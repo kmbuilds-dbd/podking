@@ -1,36 +1,51 @@
 from __future__ import annotations
 
+import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from podking.config import get_settings
 from podking.deps import current_user, get_db
 from podking.models import Subscription, User
 from podking.schemas import SubscriptionCreate, SubscriptionPatch, SubscriptionResponse
+from podking.worker import listennotes_client, podcast as podcast_helpers
 
 router = APIRouter(prefix="/api")
 
 
 async def _resolve_subscription(url: str) -> tuple[str, str]:
-    """Return (kind, feed_url) for a YouTube channel or podcast RSS URL."""
+    """Return (kind, feed_url) for a YouTube channel, Apple podcast, or RSS URL."""
     lower = url.lower()
 
-    # Podcast RSS: not a YouTube URL, treat as direct RSS feed
-    if "youtube.com" not in lower and "youtu.be" not in lower:
-        return "podcast_feed", url
+    if "youtube.com" in lower or "youtu.be" in lower:
+        channel_id = _extract_youtube_channel_id(url)
+        if channel_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract YouTube channel ID from URL. "
+                "Use a URL like youtube.com/channel/UC... or youtube.com/@handle",
+            )
+        feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+        return "youtube_channel", feed_url
 
-    # YouTube channel URL → extract channel id and build RSS feed URL
-    channel_id = _extract_youtube_channel_id(url)
-    if channel_id is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not extract YouTube channel ID from URL. "
-            "Use a URL like youtube.com/channel/UC... or youtube.com/@handle",
-        )
-    feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
-    return "youtube_channel", feed_url
+    if "podcasts.apple.com" in lower or "apple.com/podcast" in lower:
+        m = re.search(r"/id(\d+)", url)
+        if not m:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract Apple Podcast ID from URL.",
+            )
+        try:
+            feed_url = await podcast_helpers.resolve_feed_url(m.group(1))
+        except podcast_helpers.PodcastError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return "podcast_feed", feed_url
+
+    # Anything else: assume direct RSS feed URL
+    return "podcast_feed", url
 
 
 def _extract_youtube_channel_id(url: str) -> str | None:
@@ -139,3 +154,40 @@ async def patch_subscription(
     await db.commit()
     await db.refresh(sub)
     return SubscriptionResponse.model_validate(sub)
+
+
+# ── podcast search via Listen Notes ───────────────────────────────────────────
+
+
+@router.get("/podcast-search")
+async def search_podcasts(
+    q: str = Query(..., min_length=1, max_length=200),
+    user: User = Depends(current_user),
+) -> list[dict[str, object]]:
+    """Search Listen Notes for podcasts. Returns lean result dicts the
+    Subscriptions UI uses to populate the search results list."""
+    api_key = get_settings().listen_notes_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Listen Notes search is not configured (missing LISTEN_NOTES_API_KEY).",
+        )
+    try:
+        raw = await listennotes_client.search_podcasts(api_key, q, limit=10)
+    except listennotes_client.ListenNotesError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return [
+        {
+            "id": r.get("id"),
+            "title": r.get("title_original"),
+            "publisher": r.get("publisher_original"),
+            "description": r.get("description_original"),
+            "image": r.get("thumbnail") or r.get("image"),
+            "itunes_id": r.get("itunes_id"),
+            "total_episodes": r.get("total_episodes"),
+            "listennotes_url": r.get("listennotes_url"),
+        }
+        for r in raw
+        if r.get("itunes_id")
+    ]
