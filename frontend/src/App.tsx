@@ -4,6 +4,7 @@ import { useMe } from "@/hooks/useMe"
 import { UnauthenticatedError } from "@/api"
 import Login from "@/pages/Login"
 import Home from "@/pages/Home"
+import Jobs from "@/pages/Jobs"
 import Settings from "@/pages/Settings"
 import SummaryDetail from "@/pages/SummaryDetail"
 import Search from "@/pages/Search"
@@ -22,6 +23,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/jobs" element={<RequireAuth><Jobs /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
       <Route path="/summary/:id" element={<RequireAuth><SummaryDetail /></RequireAuth>} />
       <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />

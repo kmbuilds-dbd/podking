@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   listSubscriptions,
@@ -7,6 +6,7 @@ import {
   deleteSubscription,
   patchSubscription,
 } from "@/api"
+import { TopNav } from "@/components/TopNav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Subscription } from "@/api"
@@ -72,13 +72,12 @@ export default function Subscriptions() {
   })
 
   return (
-    <div className="min-h-screen p-6 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
+    <div className="min-h-screen">
+      <TopNav />
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
         <h1 className="text-xl font-semibold">Subscriptions</h1>
-      </div>
 
-      <form
+        <form
         className="flex gap-2"
         onSubmit={(e) => { e.preventDefault(); add.mutate() }}
       >
@@ -102,6 +101,7 @@ export default function Subscriptions() {
 
       <div className="space-y-2">
         {subs.data?.map((s) => <SubRow key={s.id} sub={s} />)}
+      </div>
       </div>
     </div>
   )

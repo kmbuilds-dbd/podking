@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/api"
+import { TopNav } from "@/components/TopNav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,8 +47,10 @@ export default function Settings() {
     set ? `•••• ${name} set` : `${name} not set`
 
   return (
-    <div className="min-h-screen p-6 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
+    <div className="min-h-screen">
+      <TopNav />
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
+        <h1 className="text-xl font-semibold">Settings</h1>
 
       <div className="space-y-2">
         <Label>Analysis style guidance</Label>
@@ -117,6 +120,7 @@ export default function Settings() {
       {save.isError && (
         <p className="text-sm text-red-600">Error: {String(save.error)}</p>
       )}
+      </div>
     </div>
   )
 }

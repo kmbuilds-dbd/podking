@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { useParams, useNavigate, Link } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getSummary, deleteSummary, patchSummaryTags, getTranscript, createResumamarize } from "@/api"
+import { TopNav } from "@/components/TopNav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -64,27 +65,28 @@ export default function SummaryDetail() {
   }
 
   return (
-    <div className="min-h-screen p-6 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
-        <div className="flex-1" />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => resummarize.mutate()}
-          disabled={resummarize.isPending}
-        >
-          Re-summarize
-        </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => { if (confirm("Delete this summary?")) del.mutate() }}
-          disabled={del.isPending}
-        >
-          Delete
-        </Button>
-      </div>
+    <div className="min-h-screen">
+      <TopNav />
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="flex-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => resummarize.mutate()}
+            disabled={resummarize.isPending}
+          >
+            Re-summarize
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => { if (confirm("Delete this summary?")) del.mutate() }}
+            disabled={del.isPending}
+          >
+            Delete
+          </Button>
+        </div>
 
       <div>
         <h1 className="text-xl font-semibold">{s.episode.title ?? s.episode.source_url}</h1>
@@ -173,6 +175,7 @@ export default function SummaryDetail() {
       <p className="text-xs text-muted-foreground">
         Summarized {new Date(s.created_at).toLocaleDateString()} · {s.model}
       </p>
+      </div>
     </div>
   )
 }
