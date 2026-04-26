@@ -7,7 +7,6 @@ import Home from "@/pages/Home"
 import Jobs from "@/pages/Jobs"
 import Settings from "@/pages/Settings"
 import SummaryDetail from "@/pages/SummaryDetail"
-import Search from "@/pages/Search"
 import Subscriptions from "@/pages/Subscriptions"
 import SubscriptionDetail from "@/pages/SubscriptionDetail"
 
@@ -27,7 +26,6 @@ export default function App() {
       <Route path="/jobs" element={<RequireAuth><Jobs /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
       <Route path="/summary/:id" element={<RequireAuth><SummaryDetail /></RequireAuth>} />
-      <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />
       <Route path="/subscriptions" element={<RequireAuth><Subscriptions /></RequireAuth>} />
       <Route path="/subscriptions/:id" element={<RequireAuth><SubscriptionDetail /></RequireAuth>} />
     </Routes>
