@@ -28,14 +28,30 @@ function SubRow({ sub }: { sub: Subscription }) {
 
   return (
     <div className="flex items-center gap-3 border rounded p-3 hover:bg-accent/40 transition-colors">
-      <Link to={`/subscriptions/${sub.id}`} className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{sub.title ?? sub.feed_url}</p>
-        <p className="text-xs text-muted-foreground">
-          {sub.kind === "youtube_channel" ? "YouTube" : "Podcast"} ·{" "}
-          {sub.last_checked_at
-            ? `checked ${new Date(sub.last_checked_at).toLocaleDateString()}`
-            : "never checked"}
-        </p>
+      <Link
+        to={`/subscriptions/${sub.id}`}
+        className="flex items-center gap-3 flex-1 min-w-0"
+      >
+        {sub.image_url ? (
+          <img
+            src={sub.image_url}
+            alt=""
+            className="w-12 h-12 rounded object-cover shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded bg-secondary shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">
+            {sub.title ?? "(untitled feed)"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {sub.kind === "youtube_channel" ? "YouTube" : "Podcast"} ·{" "}
+            {sub.last_checked_at
+              ? `checked ${new Date(sub.last_checked_at).toLocaleDateString()}`
+              : "never checked"}
+          </p>
+        </div>
       </Link>
       <Button
         variant="outline"

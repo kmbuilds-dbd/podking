@@ -109,6 +109,23 @@ def parse_feed_episodes(
     return out
 
 
+def fetch_feed_metadata(feed_url: str) -> dict[str, str | None]:
+    """Return {'title', 'image_url'} for a feed. Used at subscription
+    creation time so we have something nicer than the raw RSS URL to
+    display."""
+    feed = feedparser.parse(feed_url)
+    title = getattr(feed.feed, "title", None) or None
+    image_url: str | None = None
+    image_attr = getattr(feed.feed, "image", None)
+    if isinstance(image_attr, dict):
+        image_url = image_attr.get("href") or image_attr.get("url")
+    if not image_url:
+        itunes_image = getattr(feed.feed, "itunes_image", None)
+        if isinstance(itunes_image, dict):
+            image_url = itunes_image.get("href")
+    return {"title": title, "image_url": image_url}
+
+
 def _published_at_ms(entry: feedparser.FeedParserDict) -> int | None:
     pub_parsed = getattr(entry, "published_parsed", None) or getattr(entry, "updated_parsed", None)
     if pub_parsed is None:

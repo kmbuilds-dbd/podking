@@ -128,7 +128,25 @@ async def create_subscription(
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="already subscribed to this feed")
 
-    sub = Subscription(user_id=user.id, kind=kind, feed_url=feed_url)
+    # Best-effort fetch of feed metadata so the UI has something nicer than
+    # the raw RSS URL. Failures here shouldn't block the subscription —
+    # the poller will refresh title/image on the next poll.
+    title: str | None = None
+    image_url: str | None = None
+    try:
+        meta = await asyncio.to_thread(feed_helpers.fetch_feed_metadata, feed_url)
+        title = meta.get("title")
+        image_url = meta.get("image_url")
+    except Exception:  # noqa: BLE001
+        pass
+
+    sub = Subscription(
+        user_id=user.id,
+        kind=kind,
+        feed_url=feed_url,
+        title=title,
+        image_url=image_url,
+    )
     db.add(sub)
     await db.commit()
     await db.refresh(sub)

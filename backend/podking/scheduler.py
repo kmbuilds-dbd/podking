@@ -74,6 +74,16 @@ async def _check_subscription(sub: Subscription) -> None:
         link = getattr(entry, "link", "") or getattr(entry, "feedburner_origlink", "")
         new_ids.append((eid, link))
 
+    feed_title = getattr(feed.feed, "title", None) or None
+    feed_image: str | None = None
+    image_attr = getattr(feed.feed, "image", None)
+    if isinstance(image_attr, dict):
+        feed_image = image_attr.get("href") or image_attr.get("url")
+    if not feed_image:
+        itunes_image = getattr(feed.feed, "itunes_image", None)
+        if isinstance(itunes_image, dict):
+            feed_image = itunes_image.get("href")
+
     sm = get_sessionmaker()
     async with sm() as db:
         # Reload sub in this session for update
@@ -93,6 +103,13 @@ async def _check_subscription(sub: Subscription) -> None:
 
         if new_ids:
             s.last_seen_external_id = new_ids[0][0]  # most recent first
+
+        # Refresh display metadata each poll so subscriptions backfill title/
+        # image organically and stay current if the publisher changes them.
+        if feed_title:
+            s.title = feed_title
+        if feed_image:
+            s.image_url = feed_image
 
         s.last_checked_at = datetime.now(UTC)
         await db.commit()

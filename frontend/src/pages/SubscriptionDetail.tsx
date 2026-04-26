@@ -121,15 +121,26 @@ export default function SubscriptionDetail() {
 
         {data.data && (
           <>
-            <div>
-              <h1 className="text-xl font-semibold">
-                {data.data.subscription.title ?? data.data.subscription.feed_url}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {data.data.subscription.kind === "youtube_channel"
-                  ? "YouTube channel"
-                  : "Podcast"}
-              </p>
+            <div className="flex items-start gap-4">
+              {data.data.subscription.image_url ? (
+                <img
+                  src={data.data.subscription.image_url}
+                  alt=""
+                  className="w-20 h-20 rounded object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded bg-secondary shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-semibold">
+                  {data.data.subscription.title ?? "(untitled feed)"}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {data.data.subscription.kind === "youtube_channel"
+                    ? "YouTube channel"
+                    : "Podcast"}
+                </p>
+              </div>
             </div>
 
             <section className="space-y-2">

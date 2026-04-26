@@ -154,6 +154,7 @@ class SubscriptionResponse(BaseModel):
     kind: str
     feed_url: str
     title: str | None
+    image_url: str | None
     last_checked_at: datetime | None
     active: bool
     created_at: datetime

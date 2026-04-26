@@ -100,6 +100,7 @@ export interface Subscription {
   kind: string
   feed_url: string
   title: string | null
+  image_url: string | null
   last_checked_at: string | null
   active: boolean
   created_at: string
