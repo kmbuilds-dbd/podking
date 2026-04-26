@@ -58,21 +58,10 @@ async def _poll_due_subscriptions() -> None:
 
 
 async def _check_subscription(sub: Subscription) -> None:
+    """Refresh feed display metadata. Does NOT auto-enqueue jobs — the user
+    explicitly picks which episodes to summarize from the subscription
+    detail page."""
     feed = feedparser.parse(sub.feed_url)
-    new_ids: list[tuple[str, str]] = []  # (external_id, entry_link)
-
-    for entry in feed.entries:
-        if sub.kind == "youtube_channel":
-            eid = getattr(entry, "yt_videoid", None) or getattr(entry, "id", "")
-        else:
-            eid = getattr(entry, "id", "") or getattr(entry, "guid", "")
-
-        if not eid:
-            continue
-        if sub.last_seen_external_id and eid <= sub.last_seen_external_id:
-            continue
-        link = getattr(entry, "link", "") or getattr(entry, "feedburner_origlink", "")
-        new_ids.append((eid, link))
 
     feed_title = getattr(feed.feed, "title", None) or None
     feed_image: str | None = None
@@ -86,26 +75,10 @@ async def _check_subscription(sub: Subscription) -> None:
 
     sm = get_sessionmaker()
     async with sm() as db:
-        # Reload sub in this session for update
         s = await db.get(Subscription, sub.id)
         if s is None:
             return
 
-        for _eid, link in new_ids:
-            if link:
-                job = Job(
-                    user_id=s.user_id,
-                    kind="youtube" if s.kind == "youtube_channel" else "podcast",
-                    source_url=link,
-                    status="queued",
-                )
-                db.add(job)
-
-        if new_ids:
-            s.last_seen_external_id = new_ids[0][0]  # most recent first
-
-        # Refresh display metadata each poll so subscriptions backfill title/
-        # image organically and stay current if the publisher changes them.
         if feed_title:
             s.title = feed_title
         if feed_image:
