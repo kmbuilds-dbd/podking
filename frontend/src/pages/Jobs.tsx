@@ -190,9 +190,24 @@ export default function Jobs() {
         )}
 
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {showArchived ? "Archived" : "Active"}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              {showArchived ? "Archived" : "Active"}
+            </h2>
+            {allJobs.length > 0 && (
+              <button
+                onClick={() => {
+                  if (selected.size === allJobs.length) setSelected(new Set())
+                  else setSelected(new Set(allJobs.map((j) => j.id)))
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                {selected.size === allJobs.length
+                  ? `Deselect all (${allJobs.length})`
+                  : `Select all (${allJobs.length})`}
+              </button>
+            )}
+          </div>
           <button
             onClick={() => {
               setSelected(new Set())
