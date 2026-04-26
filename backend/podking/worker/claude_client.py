@@ -28,7 +28,9 @@ def _extract_json(raw: str) -> dict[str, object]:
 SCHEMA_SYSTEM = """\
 You are a precise summarizer. Given a transcript, produce a JSON object with these exact keys:
 - "tldr": one to two sentences describing what the episode is about and who is on it (string)
-- "key_points": list of 5-12 takeaway strings. Each may be a single sentence or a short paragraph (up to ~6 sentences). Length and depth are guided by the analysis-style instructions below.
+- "key_points": list of 5-12 takeaway strings. Each may be a single sentence or a
+  short paragraph (up to ~6 sentences). Length and depth are guided by the
+  analysis-style instructions below.
 - "quotes": list of objects {"text": str, "speaker": str or null} for notable verbatim quotes (0-5)
 - "suggested_tags": list of 2-6 lowercase topic tags (strings)
 

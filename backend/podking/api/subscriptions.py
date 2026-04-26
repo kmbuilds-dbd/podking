@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -20,7 +20,8 @@ from podking.schemas import (
     SubscriptionResponse,
 )
 from podking.worker import feed as feed_helpers
-from podking.worker import listennotes_client, podcast as podcast_helpers
+from podking.worker import listennotes_client
+from podking.worker import podcast as podcast_helpers
 
 router = APIRouter(prefix="/api")
 
@@ -227,7 +228,9 @@ class ProcessEpisodeBody(BaseModel):
     external_id: str
 
 
-def _serialize_episode(ep: dict[str, object], processed_external_ids: set[str]) -> dict[str, object]:
+def _serialize_episode(
+    ep: dict[str, object], processed_external_ids: set[str]
+) -> dict[str, object]:
     return {
         "external_id": ep["external_id"],
         "title": ep.get("title"),
@@ -327,21 +330,26 @@ async def process_subscription_episode(
             )
         )
         episode = existing.scalar_one_or_none()
-        published_at = None
-        if match.get("published_at_ms"):
-            published_at = datetime.fromtimestamp(
-                match["published_at_ms"] / 1000, tz=timezone.utc  # type: ignore[operator]
-            )
+        published_at: datetime | None = None
+        pub_ms = match.get("published_at_ms")
+        if isinstance(pub_ms, int):
+            published_at = datetime.fromtimestamp(pub_ms / 1000, tz=UTC)
         if episode is None:
+            ep_title = match.get("title")
+            ep_author = match.get("author")
+            ep_duration = match.get("duration_seconds")
+            ep_thumb = match.get("thumbnail")
             episode = Episode(
                 user_id=user.id,
                 source_type="podcast",
-                source_url=str(match.get("source_url") or match.get("audio_url") or sub.feed_url),
+                source_url=str(
+                    match.get("source_url") or match.get("audio_url") or sub.feed_url
+                ),
                 external_id=external_id,
-                title=match.get("title"),  # type: ignore[arg-type]
-                author=match.get("author"),  # type: ignore[arg-type]
-                duration_seconds=match.get("duration_seconds"),  # type: ignore[arg-type]
-                thumbnail_url=match.get("thumbnail"),  # type: ignore[arg-type]
+                title=str(ep_title) if isinstance(ep_title, str) else None,
+                author=str(ep_author) if isinstance(ep_author, str) else None,
+                duration_seconds=ep_duration if isinstance(ep_duration, int) else None,
+                thumbnail_url=str(ep_thumb) if isinstance(ep_thumb, str) else None,
                 audio_url=str(match["audio_url"]),
                 published_at=published_at,
             )

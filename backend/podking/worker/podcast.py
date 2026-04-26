@@ -122,12 +122,12 @@ async def fetch_apple_episode_metadata(url: str) -> dict[str, Any]:
             }
 
     # Fallback: og:title
-    m = re.search(
+    og = re.search(
         r'<meta[^>]+property="og:title"[^>]+content="([^"]+)"', html
     )
-    if m:
+    if og:
         return {
-            "title": m.group(1),
+            "title": og.group(1),
             "date_published": None,
             "duration_iso": None,
             "description": None,

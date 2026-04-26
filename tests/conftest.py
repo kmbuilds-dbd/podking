@@ -75,7 +75,9 @@ async def migrated_engine(engine: AsyncEngine) -> AsyncEngine:
 
 
 def make_session_cookie(user_id: str) -> str:
-    signer = TimestampSigner(_SESSION_SECRET, salt="cookie-session")
+    # Match Starlette's SessionMiddleware exactly: TimestampSigner(secret_key)
+    # with no salt, payload is base64url(json), value is signer.sign(payload).
+    signer = TimestampSigner(_SESSION_SECRET)
     payload = json.dumps({"user_id": user_id})
     encoded = base64.b64encode(payload.encode()).decode()
     return signer.sign(encoded).decode()

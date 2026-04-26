@@ -7,7 +7,7 @@ from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -79,8 +79,15 @@ def create_app() -> FastAPI:
 
         index_html = FRONTEND_DIST / "index.html"
 
+        # Backend-owned URL prefixes that must return real 404 JSON instead
+        # of the SPA shell when no route matches.
+        _api_prefixes = ("/api/", "/auth/", "/events/", "/reader/", "/healthz")
+
         @app.exception_handler(404)
-        async def spa_fallback(request: Request, exc: Exception) -> FileResponse:
+        async def spa_fallback(request: Request, exc: Exception) -> Response:
+            path = request.url.path
+            if any(path.startswith(p) for p in _api_prefixes):
+                return JSONResponse({"detail": "not found"}, status_code=404)
             return FileResponse(index_html)
 
     return app

@@ -103,15 +103,32 @@ def _render_summary(summary: Summary) -> str:
 <title>{_h(title_str)}</title>
 <meta name="description" content="{_h(tldr or title_str)}">
 <style>
-  body {{ font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #111; }}
+  body {{
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    max-width: 680px; margin: 2rem auto; padding: 0 1rem; color: #111;
+  }}
   h1 {{ font-size: 1.6rem; line-height: 1.3; margin-bottom: 0.25rem; }}
-  h2 {{ font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-top: 2rem; margin-bottom: 0.5rem; }}
-  .byline {{ color: #6b7280; font-size: 0.9rem; margin: 0 0 1.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; }}
+  h2 {{
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #6b7280; margin-top: 2rem; margin-bottom: 0.5rem;
+  }}
+  .byline {{
+    color: #6b7280; font-size: 0.9rem; margin: 0 0 1.5rem;
+    border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem;
+  }}
   ol, ul {{ padding-left: 1.25rem; }}
   ol li {{ margin-bottom: 0.75rem; }}
-  blockquote {{ border-left: 4px solid #d1d5db; margin: 0 0 1rem; padding: 0 0 0 1rem; font-style: italic; color: #374151; }}
-  blockquote footer {{ font-size: 0.85rem; color: #6b7280; font-style: normal; margin-top: 0.25rem; }}
-  .source {{ margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; font-size: 0.85rem; color: #6b7280; }}
+  blockquote {{
+    border-left: 4px solid #d1d5db; margin: 0 0 1rem; padding: 0 0 0 1rem;
+    font-style: italic; color: #374151;
+  }}
+  blockquote footer {{
+    font-size: 0.85rem; color: #6b7280; font-style: normal; margin-top: 0.25rem;
+  }}
+  .source {{
+    margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;
+    font-size: 0.85rem; color: #6b7280;
+  }}
   .source a {{ color: inherit; }}
 </style>
 </head>
