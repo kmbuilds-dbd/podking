@@ -307,7 +307,8 @@ async def _run_podcast_job(job: Job) -> None:
     feed_url = await podcast.resolve_feed_url(podcast_id)
 
     await _update_progress(job.id, 10, "Parsing feed…")
-    feed = feedparser.parse(feed_url)
+    # feedparser uses blocking urllib — keep it off the event loop.
+    feed = await asyncio.to_thread(feedparser.parse, feed_url)
     entry = podcast.find_episode_in_feed(feed, episode_id_str)
     if entry is None:
         # Apple's `?i=` is an iTunes track ID, not the RSS feed's guid; for

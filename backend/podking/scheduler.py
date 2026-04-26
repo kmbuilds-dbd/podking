@@ -61,7 +61,10 @@ async def _check_subscription(sub: Subscription) -> None:
     """Refresh feed display metadata. Does NOT auto-enqueue jobs — the user
     explicitly picks which episodes to summarize from the subscription
     detail page."""
-    feed = feedparser.parse(sub.feed_url)
+    # feedparser uses blocking urllib internally — never call it directly
+    # on the event loop, or every other request to the backend stalls
+    # while it waits on socket I/O.
+    feed = await asyncio.to_thread(feedparser.parse, sub.feed_url)
 
     feed_title = getattr(feed.feed, "title", None) or None
     feed_image: str | None = None
