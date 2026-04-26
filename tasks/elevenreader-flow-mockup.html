@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>podking → ElevenReader flow mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #0a0a0a;
+    --muted: #6b7280;
+    --muted-bg: #f3f4f6;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .scene { display: none; }
+  .scene.active { display: block; }
+  .scene-tab { cursor: pointer; }
+  .scene-tab.active { background: var(--fg); color: var(--bg); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120%);
+    background: #0a0a0a; color: white; padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    transition: transform 0.25s ease;
+    z-index: 50;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .truncate-2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .truncate-3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+</style>
+</head>
+<body class="bg-white text-neutral-950">
+
+<!-- Mockup chrome (not part of the actual app — just for navigating between scenes) -->
+<div class="border-b bg-neutral-50">
+  <div class="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2">
+    <span class="text-xs font-semibold uppercase tracking-wider text-neutral-500 mr-3">Mockup steps:</span>
+    <button class="scene-tab active text-xs px-3 py-1 rounded border border-neutral-300" data-scene="library">1. Library</button>
+    <button class="scene-tab text-xs px-3 py-1 rounded border border-neutral-300" data-scene="library-clicked">2. Click 🎧</button>
+    <button class="scene-tab text-xs px-3 py-1 rounded border border-neutral-300" data-scene="reader">3. What ElevenReader sees</button>
+    <button class="scene-tab text-xs px-3 py-1 rounded border border-neutral-300" data-scene="settings">4. Settings — Reader links</button>
+    <span class="ml-auto text-xs text-neutral-500">Mock data only</span>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Scene 1: Library page with the new Listen button visible            -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<section id="scene-library" class="scene active">
+  <!-- Top nav -->
+  <header class="border-b">
+    <div class="max-w-5xl mx-auto px-6 h-14 flex items-center gap-6">
+      <span class="text-base font-semibold">podking</span>
+      <nav class="flex gap-4 text-sm flex-1">
+        <a class="text-neutral-950 font-medium">Library</a>
+        <a class="text-neutral-500">Jobs</a>
+        <a class="text-neutral-500">Subscriptions</a>
+      </nav>
+      <span class="text-xs text-neutral-500 hidden sm:inline">kunmor@gmail.com</span>
+      <button class="text-xs border border-neutral-300 rounded px-3 py-1">Settings</button>
+      <button class="text-xs text-neutral-500">Logout</button>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-6 space-y-4">
+    <h1 class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Library</h1>
+
+    <!-- Search bar -->
+    <form class="flex gap-2">
+      <input class="flex-1 border border-neutral-300 rounded px-3 py-2 text-sm" placeholder="Search your library — try a phrase or topic…">
+      <button class="bg-neutral-900 text-white text-sm px-4 py-2 rounded">Search</button>
+    </form>
+
+    <!-- Tag pills -->
+    <div class="flex gap-2 flex-wrap">
+      <button class="text-xs bg-neutral-100 rounded px-2 py-1">ai (4)</button>
+      <button class="text-xs bg-neutral-100 rounded px-2 py-1">product-management (3)</button>
+      <button class="text-xs bg-neutral-100 rounded px-2 py-1">venture-capital (2)</button>
+      <button class="text-xs bg-neutral-100 rounded px-2 py-1">startups (2)</button>
+    </div>
+
+    <!-- Grid of summary cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <!-- card 1 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Satya Nadella — How Microsoft is preparing for AGI</p>
+        <p class="text-xs text-neutral-500 truncate">Dwarkesh Podcast</p>
+        <p class="text-xs text-neutral-500 truncate-3">Microsoft is restructuring around AGI, betting on Azure as the substrate, and hedging across model families. Nadella sees the unbundling of every SaaS into agent flows...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">microsoft</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">agi</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="satya-nadella">🎧 Listen</button>
+        </div>
+      </div>
+
+      <!-- card 2 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Cat Wu — Inside Claude Code product development</p>
+        <p class="text-xs text-neutral-500 truncate">Lenny's Podcast</p>
+        <p class="text-xs text-neutral-500 truncate-3">Anthropic ships in days, not quarters. PMs increasingly write code; engineers run end-to-end; the most efficient unit is one person with great taste...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">product-management</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">claude-code</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="cat-wu">🎧 Listen</button>
+        </div>
+      </div>
+
+      <!-- card 3 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Brad Gerstner & Sunny Mudra on Inference Compute</p>
+        <p class="text-xs text-neutral-500 truncate">BG2Pod</p>
+        <p class="text-xs text-neutral-500 truncate-3">Inference is going to 1 billion×. Grok-Nvidia delivered a 2.5× tokens-per-watt improvement. AGI is closer than the public conversation suggests; wealth distribution is the harder problem...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">venture-capital</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">infrastructure</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="brad-sunny">🎧 Listen</button>
+        </div>
+      </div>
+
+      <!-- card 4 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Jensen Huang — TPU competition and Nvidia supply</p>
+        <p class="text-xs text-neutral-500 truncate">Dwarkesh Podcast</p>
+        <p class="text-xs text-neutral-500 truncate-3">Why Nvidia should sell chips to China, why TPUs aren't catching up, and why the data-center buildout is more bottlenecked by power than silicon...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">nvidia</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">geopolitics</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="jensen">🎧 Listen</button>
+        </div>
+      </div>
+
+      <!-- card 5 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Harry Stebbings — Lessons from 1500 episodes</p>
+        <p class="text-xs text-neutral-500 truncate">The Twenty Minute VC</p>
+        <p class="text-xs text-neutral-500 truncate-3">The fund model is dead in its current form. Reserves matter more than picks. Every founder pitch has the same three failure modes...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">venture-capital</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">startups</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="harry">🎧 Listen</button>
+        </div>
+      </div>
+
+      <!-- card 6 -->
+      <div class="border rounded p-3 space-y-1 hover:bg-neutral-50 transition-colors">
+        <p class="text-sm font-medium truncate">Dario Amodei — The highest-stakes financial model</p>
+        <p class="text-xs text-neutral-500 truncate">Dwarkesh Podcast</p>
+        <p class="text-xs text-neutral-500 truncate-3">Anthropic's revenue scaled $3.5B → $8B → $10.5B in consecutive months. The end of negative gross margins. What "AGI is here" means inside the lab...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">anthropic</span>
+          <button class="listen-btn ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5 hover:bg-neutral-100" data-summary="dario">🎧 Listen</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Scene 2: same library, but with toast shown after click             -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<section id="scene-library-clicked" class="scene">
+  <header class="border-b">
+    <div class="max-w-5xl mx-auto px-6 h-14 flex items-center gap-6">
+      <span class="text-base font-semibold">podking</span>
+      <nav class="flex gap-4 text-sm flex-1">
+        <a class="text-neutral-950 font-medium">Library</a>
+        <a class="text-neutral-500">Jobs</a>
+        <a class="text-neutral-500">Subscriptions</a>
+      </nav>
+      <span class="text-xs text-neutral-500 hidden sm:inline">kunmor@gmail.com</span>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-6 space-y-4">
+    <h1 class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Library</h1>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div class="border rounded p-3 space-y-1 ring-2 ring-blue-300">
+        <p class="text-sm font-medium truncate">Cat Wu — Inside Claude Code product development</p>
+        <p class="text-xs text-neutral-500 truncate">Lenny's Podcast</p>
+        <p class="text-xs text-neutral-500 truncate-3">Anthropic ships in days, not quarters. PMs increasingly write code; engineers run end-to-end; the most efficient unit is one person with great taste...</p>
+        <div class="flex gap-1 flex-wrap pt-1 items-center">
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">product-management</span>
+          <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">claude-code</span>
+          <span class="ml-auto text-xs border border-blue-400 bg-blue-50 text-blue-700 rounded px-2 py-0.5">✓ Copied</span>
+        </div>
+      </div>
+      <div class="opacity-50">
+        <div class="border rounded p-3 space-y-1">
+          <p class="text-sm font-medium truncate">Satya Nadella — How Microsoft is preparing for AGI</p>
+          <p class="text-xs text-neutral-500 truncate">Dwarkesh Podcast</p>
+          <p class="text-xs text-neutral-500 truncate-3">Microsoft is restructuring around AGI, betting on Azure as the substrate...</p>
+          <div class="flex gap-1 flex-wrap pt-1 items-center">
+            <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+            <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">microsoft</span>
+            <span class="ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5">🎧 Listen</span>
+          </div>
+        </div>
+      </div>
+      <div class="opacity-50">
+        <div class="border rounded p-3 space-y-1">
+          <p class="text-sm font-medium truncate">Brad Gerstner & Sunny Mudra on Inference Compute</p>
+          <p class="text-xs text-neutral-500 truncate">BG2Pod</p>
+          <p class="text-xs text-neutral-500 truncate-3">Inference is going to 1 billion×. Grok-Nvidia delivered a 2.5× tokens-per-watt improvement...</p>
+          <div class="flex gap-1 flex-wrap pt-1 items-center">
+            <span class="text-xs bg-neutral-100 rounded px-1.5 py-0.5">ai</span>
+            <span class="ml-auto text-xs border border-neutral-300 rounded px-2 py-0.5">🎧 Listen</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Annotation -->
+    <div class="mt-8 border-l-4 border-blue-500 bg-blue-50 p-4 rounded text-sm space-y-2">
+      <p class="font-medium">After clicking 🎧 Listen on a card, the URL is copied to clipboard:</p>
+      <code class="block bg-white border border-neutral-200 rounded p-2 text-xs text-neutral-700 break-all">https://podking.example.com/reader/k7Hq8Pn3Jr2vM4xB9wL5tY1cZ6sR0aF/cat-wu-claude-code.html</code>
+      <p class="text-neutral-700">Now open ElevenReader (mobile or web), tap "Paste a link," and paste. ElevenReader fetches the URL, parses it, and starts narrating with their consumer pricing.</p>
+      <p class="text-neutral-600 text-xs">No ElevenLabs API key used. No audio generated on podking. No storage cost.</p>
+    </div>
+  </main>
+
+  <!-- The toast itself, animated in via JS -->
+  <div id="toast" class="toast">🎧 Reader link copied — paste in ElevenReader</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Scene 3: what ElevenReader actually fetches                         -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<section id="scene-reader" class="scene">
+  <div class="bg-neutral-100 border-b">
+    <div class="max-w-3xl mx-auto px-6 py-3 text-xs text-neutral-600">
+      <span class="font-mono break-all">https://podking.example.com/reader/k7Hq8Pn3Jr2vM4xB9wL5tY1cZ6sR0aF/cat-wu-claude-code.html</span>
+      <span class="ml-2 text-neutral-400">— this is the bare HTML ElevenReader (or any reader app) fetches</span>
+    </div>
+  </div>
+
+  <article class="max-w-2xl mx-auto p-8 space-y-6 leading-relaxed">
+    <header class="space-y-1 border-b pb-4">
+      <h1 class="text-2xl font-semibold">Cat Wu — Inside Claude Code product development</h1>
+      <p class="text-sm text-neutral-600">Lenny's Podcast · Summarized via podking</p>
+    </header>
+
+    <section>
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">TL;DR</h2>
+      <p>Anthropic's Head of Product for Claude Code describes how product development at the company has compressed from six-month roadmaps to one-day shipping cycles, with engineers driving end-to-end without PM coordination, and every model release forcing teams to strip scaffolding the model no longer needs.</p>
+    </section>
+
+    <section>
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">Key takeaways</h2>
+      <ol class="list-decimal list-inside space-y-3">
+        <li>Anthropic's product development timelines have gone from six months to one month, sometimes one week, sometimes one day. Part of this acceleration is access to the latest models. Another is shipping new products into "research preview," making clear it's early, experimental, and might not be supported forever.</li>
+        <li>The PM role is shifting from coordinating multi-month roadmaps to enabling teams to ship daily. As Cat puts it: "There should be less emphasis on making sure you are aligning your multi-quarter roadmaps with your partner teams and more emphasis on, OK, how can we figure out the fastest way to get something out the door?"</li>
+        <li>The most efficient shipping unit is an engineer with great product taste. On Cat's team, many engineers go end-to-end—from seeing user feedback on Twitter to shipping a product by the end of the week—without a PM involved.</li>
+        <li>Every model release forces their team to revisit existing products and audit their system prompt to remove features the model no longer needs. Claude Code's to-do list was a crutch for earlier models that couldn't track their own work.</li>
+        <li>The future of work is managing fleets of AI agents, not doing the work yourself. The human role shifts from doing the work to knowing which tasks to look into, verifying outputs, and giving feedback that makes the system better over time.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">Notable quotes</h2>
+      <div class="space-y-3">
+        <blockquote class="border-l-4 border-neutral-300 pl-3 italic">"Skills are SOPs for AI. Once you explain something once, you never have to explain it ever again."<footer class="not-italic text-xs text-neutral-500 mt-1">— Cat Wu</footer></blockquote>
+        <blockquote class="border-l-4 border-neutral-300 pl-3 italic">"You got to make yourself bionic with AI. I don't really care where you went to school. I want somebody who shows up and delivers abnormal value, bionic value."<footer class="not-italic text-xs text-neutral-500 mt-1">— Cat Wu</footer></blockquote>
+      </div>
+    </section>
+
+    <footer class="text-xs text-neutral-500 border-t pt-4">
+      Generated by podking. View original episode: lennyspodcast.com/episodes/cat-wu-claude-code
+    </footer>
+  </article>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<!-- Scene 4: Settings page with the new Reader links section            -->
+<!-- ─────────────────────────────────────────────────────────────────── -->
+<section id="scene-settings" class="scene">
+  <header class="border-b">
+    <div class="max-w-5xl mx-auto px-6 h-14 flex items-center gap-6">
+      <span class="text-base font-semibold">podking</span>
+      <nav class="flex gap-4 text-sm flex-1">
+        <a class="text-neutral-500">Library</a>
+        <a class="text-neutral-500">Jobs</a>
+        <a class="text-neutral-500">Subscriptions</a>
+      </nav>
+      <span class="text-xs text-neutral-500 hidden sm:inline">kunmor@gmail.com</span>
+    </div>
+  </header>
+
+  <main class="max-w-2xl mx-auto p-6 space-y-6">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-semibold">Settings</h1>
+      <a class="text-sm text-neutral-500 underline">← Back to Library</a>
+    </div>
+
+    <!-- Existing analysis prompt section (just shown to anchor where Reader links lives) -->
+    <div class="space-y-2">
+      <label class="text-sm font-medium">Analysis style guidance</label>
+      <p class="text-xs text-neutral-500">Shape <em>how</em> Claude analyzes the transcript — depth, focus, tone, what to emphasize.</p>
+      <textarea class="w-full border border-neutral-300 rounded p-2 text-sm h-20 bg-neutral-50 text-neutral-400" disabled>Identify substantial, distinct topics — skip tangents…</textarea>
+    </div>
+
+    <!-- ── NEW: Reader links section ───────────────────────────────── -->
+    <div class="space-y-3 border-t pt-6">
+      <label class="text-sm font-medium">Reader links</label>
+      <p class="text-xs text-neutral-500 leading-relaxed">
+        Each summary in your library is also accessible at a per-summary public URL anchored to a personal token.
+        Use these in <a class="underline" href="https://elevenreader.io" target="_blank">ElevenReader</a>'s "Paste a link" — or any read-it-later app, or your browser's reader mode.
+        The 🎧 Listen button on each card copies the URL directly to your clipboard.
+      </p>
+
+      <div class="bg-neutral-50 border border-neutral-200 rounded p-3 space-y-2">
+        <p class="text-xs text-neutral-500 uppercase tracking-wide font-semibold">Your token (anyone with this can read all your summaries)</p>
+        <div class="flex gap-2 items-center">
+          <code class="font-mono text-sm flex-1 truncate">k7Hq8Pn3Jr2vM4xB9wL5tY1cZ6sR0aF</code>
+          <button class="text-xs border border-neutral-300 rounded px-2 py-1">Copy</button>
+        </div>
+        <p class="text-xs text-neutral-500 uppercase tracking-wide font-semibold pt-2">Base URL</p>
+        <code class="font-mono text-xs text-neutral-700 break-all block">https://podking.example.com/reader/k7Hq8Pn3Jr2vM4xB9wL5tY1cZ6sR0aF/{summary_id}.html</code>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button class="text-xs border border-red-300 text-red-700 rounded px-3 py-1.5 hover:bg-red-50">Regenerate token</button>
+        <p class="text-xs text-neutral-500">Breaks any links you've already copied or shared.</p>
+      </div>
+    </div>
+
+    <!-- Existing API keys section (just for context) -->
+    <div class="space-y-3 border-t pt-6 opacity-60">
+      <label class="text-sm font-medium">Anthropic API key</label>
+      <p class="text-xs text-neutral-500">•••• Anthropic set</p>
+      <input type="password" class="w-full border border-neutral-300 rounded p-2 text-sm" placeholder="sk-ant-…" disabled>
+    </div>
+  </main>
+</section>
+
+<script>
+  // Scene switching
+  document.querySelectorAll(".scene-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.scene;
+      document.querySelectorAll(".scene-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.querySelectorAll(".scene").forEach(s => s.classList.remove("active"));
+      document.getElementById("scene-" + target).classList.add("active");
+      window.scrollTo(0, 0);
+    });
+  });
+
+  // Listen-button click on scene 1 → bounce to scene 2 with toast
+  document.querySelectorAll(".listen-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      // navigate to scene 2
+      document.querySelectorAll(".scene-tab").forEach(t => t.classList.remove("active"));
+      document.querySelector('.scene-tab[data-scene="library-clicked"]').classList.add("active");
+      document.querySelectorAll(".scene").forEach(s => s.classList.remove("active"));
+      document.getElementById("scene-library-clicked").classList.add("active");
+
+      // show toast briefly
+      const toast = document.getElementById("toast");
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2200);
+
+      window.scrollTo(0, 0);
+    });
+  });
+</script>
+</body>
+</html>

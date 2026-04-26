@@ -201,6 +201,22 @@ export interface PodcastSearchResult {
 export const searchPodcasts = (q: string) =>
   api<PodcastSearchResult[]>(`/api/podcast-search?q=${encodeURIComponent(q)}`)
 
+// ── reader links ─────────────────────────────────────────────────────────
+
+export interface FeedUrlResponse {
+  token: string
+  base_url: string
+}
+
+export const getFeedUrl = () => api<FeedUrlResponse>("/api/me/feed-url")
+
+export const regenerateFeedUrl = () =>
+  api<FeedUrlResponse>("/api/me/feed-url/regenerate", { method: "POST" })
+
+export function readerUrlFor(baseUrl: string, summaryId: string): string {
+  return `${baseUrl}/${summaryId}.html`
+}
+
 export interface FeedEpisode {
   external_id: string
   title: string | null

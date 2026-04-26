@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from podking import auth
-from podking.api import events, health, jobs, me, search, subscriptions, summaries, tags
+from podking.api import events, health, jobs, me, reader, search, subscriptions, summaries, tags
 from podking.api import settings as settings_api
 from podking.config import get_settings
 from podking.db import get_sessionmaker
@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(tags.router)
     app.include_router(search.router)
     app.include_router(subscriptions.router)
+    app.include_router(reader.router)
 
     if FRONTEND_DIST.exists():
         assets_dir = FRONTEND_DIST / "assets"

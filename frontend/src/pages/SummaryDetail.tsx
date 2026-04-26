@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getSummary, deleteSummary, patchSummaryTags, getTranscript, createResumamarize } from "@/api"
 import { TopNav } from "@/components/TopNav"
+import { ListenButton } from "@/components/ListenButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -70,6 +71,7 @@ export default function SummaryDetail() {
       <div className="max-w-2xl mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="flex-1" />
+          <ListenButton summaryId={s.id} variant="detail" />
           <Button
             variant="outline"
             size="sm"

@@ -2,12 +2,14 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { TopNav } from "@/components/TopNav"
+import { ListenButton } from "@/components/ListenButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { listSummaries, listTags, search } from "@/api"
 import type { SearchResult, Summary } from "@/api"
 
 function SummaryCard({
+  summaryId,
   episodeTitle,
   episodeAuthor,
   tldr,
@@ -15,6 +17,7 @@ function SummaryCard({
   href,
   score,
 }: {
+  summaryId: string
   episodeTitle: string
   episodeAuthor?: string | null
   tldr: string
@@ -23,8 +26,8 @@ function SummaryCard({
   score?: number
 }) {
   return (
-    <Link to={href}>
-      <div className="border rounded p-3 space-y-1 hover:bg-accent transition-colors cursor-pointer h-full">
+    <div className="border rounded p-3 space-y-1 hover:bg-accent transition-colors h-full flex flex-col">
+      <Link to={href} className="space-y-1 flex-1">
         <p className="text-sm font-medium truncate" title={episodeTitle}>
           {episodeTitle}
         </p>
@@ -32,25 +35,29 @@ function SummaryCard({
           <p className="text-xs text-muted-foreground truncate">{episodeAuthor}</p>
         )}
         <p className="text-xs text-muted-foreground line-clamp-3">{tldr}</p>
-        <div className="flex gap-1 flex-wrap pt-1 items-center">
-          {tags.slice(0, 4).map((t) => (
-            <span key={t.name} className="text-xs bg-secondary rounded px-1.5 py-0.5">
-              {t.name}
-            </span>
-          ))}
+      </Link>
+      <div className="flex gap-1 flex-wrap pt-1 items-center">
+        {tags.slice(0, 4).map((t) => (
+          <span key={t.name} className="text-xs bg-secondary rounded px-1.5 py-0.5">
+            {t.name}
+          </span>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
           {score != null && (
-            <span className="text-[10px] text-muted-foreground/60 ml-auto">
+            <span className="text-[10px] text-muted-foreground/60">
               {score.toFixed(2)}
             </span>
           )}
+          <ListenButton summaryId={summaryId} />
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
 function summaryToCard(s: Summary) {
   return {
+    summaryId: s.id,
     episodeTitle: s.episode.title ?? s.episode.source_url,
     episodeAuthor: s.episode.author,
     tldr: s.content.tldr,
@@ -61,6 +68,7 @@ function summaryToCard(s: Summary) {
 
 function searchResultToCard(r: SearchResult) {
   return {
+    summaryId: r.summary_id,
     episodeTitle: r.episode.title ?? r.episode.source_url,
     episodeAuthor: r.episode.author,
     tldr: r.summary.content.tldr,
