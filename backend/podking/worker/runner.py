@@ -119,7 +119,11 @@ async def _fail_job(job_id: uuid.UUID, error: str) -> None:
             return
         job.status = "failed"
         job.error = error[:1000]
-        job.finished_at = datetime.now(UTC)
+        now = datetime.now(UTC)
+        job.finished_at = now
+        # Auto-archive failed jobs so they don't clutter the active list.
+        if job.archived_at is None:
+            job.archived_at = now
         await db.commit()
         publish(job_id, {"status": "failed", "progress_pct": job.progress_pct,
                          "progress_message": None, "error": error[:1000]})

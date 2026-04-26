@@ -183,7 +183,9 @@ async def delete_job(
 
 
 async def mark_interrupted_jobs_failed(db: AsyncSession) -> None:
-    """Called on startup: any non-terminal, non-queued job was interrupted."""
+    """Called on startup: any non-terminal, non-queued job was interrupted.
+    Auto-archive these so they don't clutter the active list."""
+    now = datetime.now(UTC)
     await db.execute(
         update(Job)
         .where(
@@ -192,7 +194,8 @@ async def mark_interrupted_jobs_failed(db: AsyncSession) -> None:
         .values(
             status="failed",
             error="interrupted by restart",
-            finished_at=datetime.now(UTC),
+            finished_at=now,
+            archived_at=now,
         )
     )
     await db.commit()
