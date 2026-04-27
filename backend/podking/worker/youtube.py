@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import tempfile
 from pathlib import Path
 
 from podking.config import get_settings
+
+log = logging.getLogger(__name__)
 
 
 class YtDlpError(RuntimeError):
@@ -15,6 +18,42 @@ class YtDlpError(RuntimeError):
 
 
 _materialized_cookies_path: str | None = None
+_logged_cookies_diag = False
+
+# YouTube auth cookies that must be present for an authenticated request.
+# Their presence is the cheapest signal that the export was from a logged-in
+# browser session and survived transport.
+_REQUIRED_AUTH_COOKIES = ("SID", "HSID", "SSID", "APISID", "SAPISID")
+
+
+def _log_cookies_diag(source: str, path: str) -> None:
+    """One-shot diagnostic log: file size + which YouTube auth cookies are
+    present. Helps distinguish between empty env var, mangled content, and
+    stale cookies when YouTube's bot check keeps firing."""
+    global _logged_cookies_diag
+    if _logged_cookies_diag:
+        return
+    _logged_cookies_diag = True
+    try:
+        text = Path(path).read_text()
+    except OSError as exc:
+        log.warning("yt-dlp cookies unreadable: source=%s path=%s err=%s", source, path, exc)
+        return
+    data_lines = [ln for ln in text.splitlines() if ln and not ln.startswith("#")]
+    names = {ln.split("\t")[5] for ln in data_lines if ln.count("\t") >= 6}
+    present = [c for c in _REQUIRED_AUTH_COOKIES if c in names]
+    missing = [c for c in _REQUIRED_AUTH_COOKIES if c not in names]
+    log.info(
+        "yt-dlp cookies loaded: source=%s path=%s bytes=%d data_lines=%d "
+        "auth_present=%s auth_missing=%s",
+        source, path, len(text), len(data_lines), present, missing,
+    )
+    if missing:
+        log.warning(
+            "yt-dlp cookies missing key auth cookies %s — YouTube will likely "
+            "still reject as bot traffic. Re-export from a logged-in session.",
+            missing,
+        )
 
 
 def cookies_path() -> str | None:
@@ -27,6 +66,7 @@ def cookies_path() -> str | None:
     global _materialized_cookies_path
     settings = get_settings()
     if settings.yt_dlp_cookies_file:
+        _log_cookies_diag("file", settings.yt_dlp_cookies_file)
         return settings.yt_dlp_cookies_file
     if not settings.yt_dlp_cookies:
         return None
@@ -37,6 +77,7 @@ def cookies_path() -> str | None:
         # but locked down from other users on the host.
         path.chmod(0o600)
         _materialized_cookies_path = str(path)
+    _log_cookies_diag("env", _materialized_cookies_path)
     return _materialized_cookies_path
 
 
@@ -76,6 +117,7 @@ def extract_video_id(url: str) -> str:
 async def fetch_metadata(url: str) -> dict[str, object]:
     stdout, stderr = await _run("--dump-json", "--skip-download", "--no-warnings", url)
     if not stdout.strip():
+        log.warning("yt-dlp metadata failed for %s: %s", url, stderr)
         raise YtDlpError(f"yt-dlp metadata failed: {stderr[:500]}")
     return json.loads(stdout)  # type: ignore[no-any-return]
 
