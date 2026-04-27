@@ -137,7 +137,12 @@ async def fetch_apple_episode_metadata(url: str) -> dict[str, Any]:
 
 
 async def download_audio(enclosure_url: str, output_path: Path) -> None:
-    async with httpx.AsyncClient(follow_redirects=True, timeout=300) as client:
+    # Per-operation timeouts only — no total cap. Large episodes (300+ MB)
+    # take longer than any reasonable single timeout, and what we actually
+    # care about is "is data still flowing?" — `read=120` aborts when no
+    # bytes arrive for 2 minutes, regardless of total elapsed time.
+    timeout = httpx.Timeout(connect=15.0, read=120.0, write=60.0, pool=10.0)
+    async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
         async with client.stream("GET", enclosure_url) as resp:
             resp.raise_for_status()
             with output_path.open("wb") as f:
