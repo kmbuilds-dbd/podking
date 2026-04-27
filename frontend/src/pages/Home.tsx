@@ -26,32 +26,40 @@ function SummaryCard({
   score?: number
 }) {
   return (
-    <div className="border rounded p-3 space-y-1 hover:bg-accent transition-colors h-full flex flex-col">
-      <Link to={href} className="space-y-1 flex-1">
-        <p className="text-sm font-medium truncate" title={episodeTitle}>
+    <article className="paper-card p-4 h-full flex flex-col gap-2">
+      <Link to={href} className="space-y-1.5 flex-1 group">
+        <h3
+          className="font-serif text-[17px] leading-snug font-semibold tracking-tightest line-clamp-2 group-hover:text-foreground transition-colors"
+          title={episodeTitle}
+        >
           {episodeTitle}
-        </p>
+        </h3>
         {episodeAuthor && (
           <p className="text-xs text-muted-foreground truncate">{episodeAuthor}</p>
         )}
-        <p className="text-xs text-muted-foreground line-clamp-3">{tldr}</p>
+        <p className="text-[13px] leading-relaxed text-muted-foreground line-clamp-3">
+          {tldr}
+        </p>
       </Link>
-      <div className="flex gap-1 flex-wrap pt-1 items-center">
+      <div className="flex gap-1 flex-wrap items-center pt-1.5 mt-auto">
         {tags.slice(0, 4).map((t) => (
-          <span key={t.name} className="text-xs bg-secondary rounded px-1.5 py-0.5">
+          <span
+            key={t.name}
+            className="text-[11px] bg-secondary/70 text-secondary-foreground rounded px-1.5 py-0.5"
+          >
             {t.name}
           </span>
         ))}
         <div className="ml-auto flex items-center gap-2">
           {score != null && (
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className="text-[10px] text-muted-foreground/60 font-mono">
               {score.toFixed(2)}
             </span>
           )}
           <ListenButton summaryId={summaryId} />
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -104,6 +112,7 @@ export default function Home() {
     : (summaries.data ?? []).map(summaryToCard)
 
   const isLoading = isSearching ? searchResults.isLoading : summaries.isLoading
+  const totalCount = !isSearching ? summaries.data?.length : undefined
 
   const clearSearch = () => {
     setQ("")
@@ -114,56 +123,81 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-5xl mx-auto p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Library
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-16 space-y-8">
+        <div className="space-y-2">
+          <p className="eyebrow">Library</p>
+          <h1 className="font-serif text-4xl sm:text-5xl tracking-tightest font-semibold leading-[1.05]">
+            {isSearching ? (
+              <>
+                Searching{" "}
+                <span className="italic text-muted-foreground">
+                  {submittedQ ? `"${submittedQ}"` : `#${activeTag}`}
+                </span>
+              </>
+            ) : (
+              <>
+                Everything you've{" "}
+                <span className="italic text-muted-foreground">
+                  meant to listen to.
+                </span>
+              </>
+            )}
           </h1>
-          {isSearching && (
-            <button
-              onClick={clearSearch}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
-            >
-              Clear search
-            </button>
+          {!isSearching && totalCount != null && totalCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {totalCount} {totalCount === 1 ? "summary" : "summaries"} in your
+              library.
+            </p>
           )}
         </div>
 
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setSubmittedQ(q.trim())
-          }}
-        >
-          <Input
-            placeholder="Search your library — try a phrase or topic…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={!q.trim() && !submittedQ}>
-            Search
-          </Button>
-        </form>
+        <div className="space-y-3">
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              setSubmittedQ(q.trim())
+            }}
+          >
+            <Input
+              placeholder="Search by phrase or topic…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="flex-1 h-10"
+            />
+            <Button type="submit" disabled={!q.trim() && !submittedQ}>
+              Search
+            </Button>
+            {isSearching && (
+              <Button type="button" variant="ghost" onClick={clearSearch}>
+                Clear
+              </Button>
+            )}
+          </form>
 
-        {tags.data && tags.data.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {tags.data.map((t) => (
-              <button
-                key={t.name}
-                onClick={() => setActiveTag(activeTag === t.name ? null : t.name)}
-                className={`text-xs rounded px-2 py-1 border transition-colors ${
-                  activeTag === t.name
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-secondary text-foreground border-transparent hover:bg-secondary/70"
-                }`}
-              >
-                {t.name} ({t.count})
-              </button>
-            ))}
-          </div>
-        )}
+          {tags.data && tags.data.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap">
+              {tags.data.map((t) => (
+                <button
+                  key={t.name}
+                  onClick={() =>
+                    setActiveTag(activeTag === t.name ? null : t.name)
+                  }
+                  className={`text-xs rounded-full px-2.5 py-1 border transition-colors ${
+                    activeTag === t.name
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-secondary/60 text-foreground border-transparent hover:bg-secondary"
+                  }`}
+                >
+                  {t.name}
+                  <span className="ml-1 text-muted-foreground">
+                    {t.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isLoading && (
           <p className="text-sm text-muted-foreground">
@@ -172,26 +206,30 @@ export default function Home() {
         )}
 
         {isSearching && searchResults.isError && (
-          <p className="text-sm text-red-600">Search failed.</p>
+          <p className="text-sm text-destructive">Search failed.</p>
         )}
 
         {!isLoading && cards.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            {isSearching ? (
-              <>No matches{submittedQ && ` for "${submittedQ}"`}.</>
-            ) : (
-              <>
-                No summaries yet.{" "}
-                <Link to="/jobs" className="underline text-foreground">
-                  Add a podcast or video
+          <div className="paper-card p-8 text-center space-y-2">
+            <p className="font-serif text-lg">
+              {isSearching ? (
+                <>No matches {submittedQ && <em>for "{submittedQ}"</em>}.</>
+              ) : (
+                <>Your library is empty.</>
+              )}
+            </p>
+            {!isSearching && (
+              <p className="text-sm text-muted-foreground">
+                <Link to="/jobs" className="underline underline-offset-4">
+                  Paste a podcast or video URL
                 </Link>{" "}
-                to get started.
-              </>
+                to add the first summary.
+              </p>
             )}
-          </p>
+          </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((c, i) => (
             <SummaryCard key={c.href + i} {...c} />
           ))}

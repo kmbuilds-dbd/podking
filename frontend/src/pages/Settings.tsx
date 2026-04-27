@@ -69,14 +69,19 @@ export default function Settings() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Settings</h1>
+      <div className="max-w-2xl mx-auto px-6 pt-10 pb-16 space-y-8">
+        <div className="flex items-end justify-between">
+          <div className="space-y-2">
+            <p className="eyebrow">Settings</p>
+            <h1 className="font-serif text-4xl tracking-tightest font-semibold leading-[1.05]">
+              Tune the room.
+            </h1>
+          </div>
           <Link
             to="/"
             className="text-sm text-muted-foreground hover:text-foreground"
           >
-            ← Back to Library
+            ← Library
           </Link>
         </div>
 

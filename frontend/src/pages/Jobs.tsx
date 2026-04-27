@@ -35,33 +35,42 @@ function JobCard({
 }) {
   useJobProgress(["done", "failed"].includes(job.status) ? null : job.id)
 
-  const color =
-    job.status === "done"
-      ? "text-green-600"
-      : job.status === "failed"
-        ? "text-red-600"
-        : "text-blue-600"
+  const statusStyles: Record<string, string> = {
+    done: "text-emerald-700 bg-emerald-100/60",
+    failed: "text-destructive bg-destructive/10",
+    queued: "text-foreground/60 bg-foreground/5",
+    fetching: "text-amber-800 bg-amber-100/60",
+    transcribing: "text-amber-800 bg-amber-100/60",
+    summarizing: "text-amber-800 bg-amber-100/60",
+    embedding: "text-amber-800 bg-amber-100/60",
+  }
+  const statusClass = statusStyles[job.status] ?? "text-foreground/60 bg-foreground/5"
 
   return (
     <div
-      className={`border rounded p-3 space-y-1 transition-colors ${
-        selected ? "border-blue-500 bg-blue-50/50" : ""
+      className={`paper-card p-3.5 transition-colors ${
+        selected ? "border-foreground bg-foreground/[0.03]" : ""
       }`}
     >
       <div className="flex items-start gap-3">
         <input
           type="checkbox"
-          className="mt-1"
+          className="mt-[5px] accent-foreground"
           checked={selected}
           onChange={onToggleSelected}
           aria-label={`Select ${jobTitle(job)}`}
         />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 space-y-1">
           <div className="flex justify-between items-start gap-2">
-            <span className="text-sm font-medium truncate" title={jobTitle(job)}>
+            <span
+              className="text-sm font-medium truncate font-serif"
+              title={jobTitle(job)}
+            >
               {jobTitle(job)}
             </span>
-            <span className={`text-xs font-semibold uppercase shrink-0 ${color}`}>
+            <span
+              className={`text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 shrink-0 ${statusClass}`}
+            >
               {job.status}
             </span>
           </div>
@@ -71,21 +80,25 @@ function JobCard({
             </p>
           )}
           {!["done", "failed"].includes(job.status) && (
-            <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+            <div className="mt-1.5 w-full bg-secondary rounded-full h-1 overflow-hidden">
               <div
-                className="bg-blue-500 h-1.5 rounded-full transition-all"
+                className="bg-foreground h-1 rounded-full transition-all"
                 style={{ width: `${job.progress_pct}%` }}
               />
             </div>
           )}
           {job.progress_message && (
-            <p className="text-xs text-muted-foreground">{job.progress_message}</p>
+            <p className="text-xs text-muted-foreground">
+              {job.progress_message}
+            </p>
           )}
-          {job.error && <p className="text-xs text-red-600">{job.error}</p>}
+          {job.error && (
+            <p className="text-xs text-destructive">{job.error}</p>
+          )}
           {job.status === "done" && summaryId && (
             <Link
               to={`/summary/${summaryId}`}
-              className="text-xs text-blue-600 underline"
+              className="text-xs text-foreground underline underline-offset-2 hover:text-foreground/70"
             >
               View summary →
             </Link>
@@ -166,7 +179,15 @@ export default function Jobs() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="max-w-3xl mx-auto px-6 pt-10 pb-16 space-y-8">
+        <div className="space-y-2">
+          <p className="eyebrow">Jobs</p>
+          <h1 className="font-serif text-4xl tracking-tightest font-semibold leading-[1.05]">
+            Add something{" "}
+            <span className="italic text-muted-foreground">to listen to.</span>
+          </h1>
+        </div>
+
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -179,19 +200,19 @@ export default function Jobs() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={submit.isPending}
-            className="flex-1"
+            className="flex-1 h-11"
           />
-          <Button type="submit" disabled={submit.isPending || !url.trim()}>
+          <Button type="submit" size="lg" disabled={submit.isPending || !url.trim()}>
             {submit.isPending ? "Adding…" : "Process"}
           </Button>
         </form>
         {submit.isError && (
-          <p className="text-sm text-red-600">{String(submit.error)}</p>
+          <p className="text-sm text-destructive">{String(submit.error)}</p>
         )}
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="eyebrow">
               {showArchived ? "Archived" : "Active"}
             </h2>
             {allJobs.length > 0 && (
@@ -220,8 +241,10 @@ export default function Jobs() {
         </div>
 
         {selected.size > 0 && (
-          <div className="sticky top-0 z-10 bg-background border rounded p-2 flex items-center gap-2 shadow-sm">
-            <span className="text-sm">{selected.size} selected</span>
+          <div className="sticky top-14 z-20 bg-background/95 backdrop-blur border border-border rounded-md p-2 px-3 flex items-center gap-2 shadow-md">
+            <span className="text-sm font-medium">
+              {selected.size} selected
+            </span>
             <div className="flex-1" />
             {showArchived ? (
               <Button
@@ -267,7 +290,7 @@ export default function Jobs() {
 
         {activeJobs.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="eyebrow">
               In progress
             </h3>
             {activeJobs.map((j) => (
@@ -284,7 +307,7 @@ export default function Jobs() {
 
         {recentJobs.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="eyebrow">
               {showArchived ? "Archived" : "Recent"}
             </h3>
             {recentJobs.map((j) => (
@@ -300,11 +323,11 @@ export default function Jobs() {
         )}
 
         {activeJobs.length === 0 && recentJobs.length === 0 && (
-          <p className="text-sm text-muted-foreground">
+          <div className="paper-card p-8 text-center text-sm text-muted-foreground">
             {showArchived
               ? "No archived jobs."
-              : "No active jobs. Paste a URL above to get started."}
-          </p>
+              : "Nothing in flight. Paste a URL above to add a podcast or video."}
+          </div>
         )}
       </div>
     </div>

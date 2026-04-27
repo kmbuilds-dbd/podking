@@ -51,8 +51,24 @@ export default function SummaryDetail() {
     },
   })
 
-  if (summary.isLoading) return <div className="p-6">Loading…</div>
-  if (summary.isError) return <div className="p-6 text-red-600">Error loading summary.</div>
+  if (summary.isLoading)
+    return (
+      <div className="min-h-screen">
+        <TopNav />
+        <div className="max-w-2xl mx-auto p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      </div>
+    )
+  if (summary.isError)
+    return (
+      <div className="min-h-screen">
+        <TopNav />
+        <div className="max-w-2xl mx-auto p-6 text-sm text-destructive">
+          Error loading summary.
+        </div>
+      </div>
+    )
   if (!summary.data) return null
 
   const s = summary.data
@@ -68,8 +84,9 @@ export default function SummaryDetail() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-3">
+      <div className="max-w-2xl mx-auto px-6 pt-10 pb-16">
+        {/* Action row */}
+        <div className="flex items-center gap-2 mb-8">
           <div className="flex-1" />
           <ListenButton summaryId={s.id} variant="detail" />
           <Button
@@ -81,102 +98,161 @@ export default function SummaryDetail() {
             Re-summarize
           </Button>
           <Button
-            variant="destructive"
+            variant="ghost"
             size="sm"
-            onClick={() => { if (confirm("Delete this summary?")) del.mutate() }}
+            onClick={() => {
+              if (confirm("Delete this summary?")) del.mutate()
+            }}
             disabled={del.isPending}
+            className="text-muted-foreground hover:text-destructive"
+            title="Delete summary"
           >
             Delete
           </Button>
         </div>
 
-      <div>
-        <h1 className="text-xl font-semibold">{s.episode.title ?? s.episode.source_url}</h1>
-        {s.episode.author && (
-          <p className="text-sm text-muted-foreground">{s.episode.author}</p>
-        )}
-      </div>
+        <article className="space-y-10">
+          {/* Title block */}
+          <header className="space-y-3">
+            <h1 className="font-serif text-3xl sm:text-4xl leading-[1.1] tracking-tightest font-semibold">
+              {s.episode.title ?? s.episode.source_url}
+            </h1>
+            {s.episode.author && (
+              <p className="text-base text-muted-foreground">
+                {s.episode.author}
+              </p>
+            )}
+          </header>
 
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-1">TL;DR</h2>
-        <p>{tldr}</p>
-      </section>
+          {/* TL;DR — pulled out as a lede paragraph in the body serif. */}
+          <section className="border-l-2 border-foreground/20 pl-5">
+            <p className="eyebrow mb-2">TL;DR</p>
+            <p className="font-serif text-lg leading-relaxed text-foreground/90">
+              {tldr}
+            </p>
+          </section>
 
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">Key Points</h2>
-        <ul className="list-disc list-inside space-y-1">
-          {key_points.map((pt, i) => <li key={i} className="text-sm">{pt}</li>)}
-        </ul>
-      </section>
+          {/* Key takeaways */}
+          <section className="space-y-4">
+            <p className="eyebrow">Key takeaways</p>
+            <ol className="space-y-5 counter-reset-key">
+              {key_points.map((pt, i) => (
+                <li key={i} className="grid grid-cols-[2.5rem_1fr] gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="font-serif text-xl text-muted-foreground pt-0.5"
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p className="text-[15px] leading-relaxed">{pt}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
 
-      {quotes.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">Quotes</h2>
-          <div className="space-y-3">
-            {quotes.map((q, i) => (
-              <blockquote key={i} className="border-l-4 pl-3 italic text-sm">
-                "{q.text}"
-                {q.speaker && <footer className="text-xs not-italic text-muted-foreground mt-0.5">— {q.speaker}</footer>}
-              </blockquote>
-            ))}
-          </div>
-        </section>
-      )}
+          {/* Quotes */}
+          {quotes.length > 0 && (
+            <section className="space-y-4">
+              <p className="eyebrow">Notable quotes</p>
+              <div className="space-y-5">
+                {quotes.map((q, i) => (
+                  <blockquote
+                    key={i}
+                    className="border-l-2 border-foreground/30 pl-5 py-1"
+                  >
+                    <p className="font-serif italic text-lg leading-relaxed">
+                      &ldquo;{q.text}&rdquo;
+                    </p>
+                    {q.speaker && (
+                      <footer className="not-italic text-sm text-muted-foreground mt-2">
+                        — {q.speaker}
+                      </footer>
+                    )}
+                  </blockquote>
+                ))}
+              </div>
+            </section>
+          )}
 
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">Tags</h2>
-        <div className="flex gap-2 flex-wrap items-center">
-          {s.tags.map((t) => (
-            <span
-              key={t.name}
-              className={`text-xs rounded px-2 py-1 flex items-center gap-1 ${
-                t.source === "llm" ? "bg-secondary" : "bg-blue-100 text-blue-800"
-              }`}
-            >
-              {t.name}
-              {t.source === "llm" && <span title="AI suggested" className="opacity-50">✦</span>}
-              <button
-                onClick={() => tagMutation.mutate({ add: [], remove: [t.name] })}
-                className="ml-0.5 opacity-50 hover:opacity-100"
-                aria-label={`Remove ${t.name}`}
+          {/* Tags */}
+          <section className="space-y-3">
+            <p className="eyebrow">Tags</p>
+            <div className="flex gap-1.5 flex-wrap items-center">
+              {s.tags.map((t) => (
+                <span
+                  key={t.name}
+                  className={`text-xs rounded-full px-2.5 py-1 inline-flex items-center gap-1.5 ${
+                    t.source === "llm"
+                      ? "bg-secondary/70 text-secondary-foreground"
+                      : "bg-foreground/8 text-foreground border border-foreground/15"
+                  }`}
+                >
+                  {t.source === "llm" && (
+                    <span title="AI suggested" className="opacity-40 text-[10px]">
+                      ✦
+                    </span>
+                  )}
+                  {t.name}
+                  <button
+                    onClick={() =>
+                      tagMutation.mutate({ add: [], remove: [t.name] })
+                    }
+                    className="opacity-40 hover:opacity-100 -mr-1 transition-opacity"
+                    aria-label={`Remove ${t.name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <form
+                className="flex gap-1 items-center"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleAddTag()
+                }}
               >
-                ×
-              </button>
-            </span>
-          ))}
-          <form
-            className="flex gap-1"
-            onSubmit={(e) => { e.preventDefault(); handleAddTag() }}
-          >
-            <Input
-              className="h-7 text-xs w-28"
-              placeholder="add tag…"
-              value={addTagInput}
-              onChange={(e) => setAddTagInput(e.target.value)}
-            />
-            <Button type="submit" size="sm" className="h-7 text-xs px-2">+</Button>
-          </form>
-        </div>
-      </section>
+                <Input
+                  className="h-7 text-xs w-32 rounded-full"
+                  placeholder="add tag…"
+                  value={addTagInput}
+                  onChange={(e) => setAddTagInput(e.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                >
+                  +
+                </Button>
+              </form>
+            </div>
+          </section>
 
-      <section>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowTranscript((v) => !v)}
-        >
-          {showTranscript ? "Hide transcript" : "Show transcript"}
-        </Button>
-        {showTranscript && (
-          <div className="mt-2 max-h-96 overflow-y-auto border rounded p-3 text-xs text-muted-foreground whitespace-pre-wrap">
-            {transcript.isLoading ? "Loading…" : (transcript.data?.text ?? "No transcript available.")}
-          </div>
-        )}
-      </section>
+          {/* Transcript */}
+          <section className="border-t border-border pt-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTranscript((v) => !v)}
+              className="text-muted-foreground -ml-3"
+            >
+              {showTranscript ? "Hide transcript" : "Show full transcript"}
+            </Button>
+            {showTranscript && (
+              <div className="mt-3 max-h-96 overflow-y-auto border border-border/80 rounded-md p-4 text-[13px] leading-relaxed text-muted-foreground whitespace-pre-wrap bg-secondary/30">
+                {transcript.isLoading
+                  ? "Loading…"
+                  : transcript.data?.text ?? "No transcript available."}
+              </div>
+            )}
+          </section>
 
-      <p className="text-xs text-muted-foreground">
-        Summarized {new Date(s.created_at).toLocaleDateString()} · {s.model}
-      </p>
+          <p className="text-xs text-muted-foreground border-t border-border pt-4">
+            Summarized {new Date(s.created_at).toLocaleDateString()} ·{" "}
+            <span className="font-mono">{s.model}</span>
+          </p>
+        </article>
       </div>
     </div>
   )

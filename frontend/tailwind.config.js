@@ -44,6 +44,14 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        serif: "var(--font-serif)",
+        sans: "var(--font-sans)",
+        mono: "var(--font-mono)",
+      },
+      letterSpacing: {
+        tightest: "-0.025em",
+      },
     },
   },
   plugins: [],

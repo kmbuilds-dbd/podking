@@ -27,7 +27,7 @@ function SubRow({ sub }: { sub: Subscription }) {
   })
 
   return (
-    <div className="flex items-center gap-3 border rounded p-3 hover:bg-accent/40 transition-colors">
+    <div className="flex items-center gap-3 paper-card p-3">
       <Link
         to={`/subscriptions/${sub.id}`}
         className="flex items-center gap-3 flex-1 min-w-0"
@@ -42,7 +42,7 @@ function SubRow({ sub }: { sub: Subscription }) {
           <div className="w-12 h-12 rounded bg-secondary shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">
+          <p className="text-sm font-medium truncate font-serif">
             {sub.title ?? "(untitled feed)"}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -85,7 +85,7 @@ function SearchResultRow({
   isSubscribing: boolean
 }) {
   return (
-    <div className="flex items-start gap-3 border rounded p-3">
+    <div className="flex items-start gap-3 paper-card p-3">
       {result.image && (
         <img
           src={result.image}
@@ -94,7 +94,7 @@ function SearchResultRow({
         />
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" title={result.title}>
+        <p className="font-serif font-medium truncate text-base" title={result.title}>
           {result.title}
         </p>
         {result.publisher && (
@@ -157,13 +157,19 @@ export default function Subscriptions() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <h1 className="text-xl font-semibold">Subscriptions</h1>
+      <div className="max-w-2xl mx-auto px-6 pt-10 pb-16 space-y-8">
+        <div className="space-y-2">
+          <p className="eyebrow">Subscriptions</p>
+          <h1 className="font-serif text-4xl tracking-tightest font-semibold leading-[1.05]">
+            Channels and shows{" "}
+            <span className="italic text-muted-foreground">
+              you keep an ear on.
+            </span>
+          </h1>
+        </div>
 
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Find a podcast
-          </h2>
+        <section className="space-y-3">
+          <h2 className="eyebrow">Find a podcast</h2>
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -209,7 +215,7 @@ export default function Subscriptions() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="eyebrow">
             Add by URL
           </h2>
           <form
@@ -234,7 +240,7 @@ export default function Subscriptions() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="eyebrow">
             Following
           </h2>
           {subs.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}

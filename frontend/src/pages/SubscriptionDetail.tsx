@@ -35,7 +35,7 @@ function EpisodeRow({
     .join(" · ")
 
   return (
-    <div className="flex items-start gap-3 border rounded p-3">
+    <div className="flex items-start gap-3 paper-card p-3">
       {episode.thumbnail && (
         <img
           src={episode.thumbnail}
@@ -44,22 +44,21 @@ function EpisodeRow({
         />
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium" title={episode.title ?? ""}>
+        <p
+          className="font-serif font-medium text-base leading-snug"
+          title={episode.title ?? ""}
+        >
           {episode.title ?? "(untitled episode)"}
         </p>
-        {meta && <p className="text-xs text-muted-foreground">{meta}</p>}
+        {meta && <p className="text-xs text-muted-foreground mt-0.5">{meta}</p>}
         {episode.description && (
-          <p
-            className="text-xs text-muted-foreground line-clamp-2 mt-0.5"
-            // RSS descriptions are usually plain text but may contain HTML
-            // entities — render as text to be safe.
-          >
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
             {episode.description.replace(/<[^>]+>/g, "").slice(0, 240)}
           </p>
         )}
       </div>
       {episode.processed ? (
-        <span className="text-xs text-green-600 font-medium shrink-0 self-center">
+        <span className="text-xs text-emerald-700 font-medium shrink-0 self-center bg-emerald-100/60 rounded px-2 py-1">
           ✓ Summarized
         </span>
       ) : (
@@ -104,7 +103,7 @@ export default function SubscriptionDetail() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 pt-10 pb-16 space-y-8">
         <Link
           to="/subscriptions"
           className="text-sm text-muted-foreground hover:text-foreground"
@@ -112,41 +111,41 @@ export default function SubscriptionDetail() {
           ← All subscriptions
         </Link>
 
-        {data.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {data.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
         {data.isError && (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-destructive">
             Failed to load episodes: {String(data.error)}
           </p>
         )}
 
         {data.data && (
           <>
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-5">
               {data.data.subscription.image_url ? (
                 <img
                   src={data.data.subscription.image_url}
                   alt=""
-                  className="w-20 h-20 rounded object-cover shrink-0"
+                  className="w-24 h-24 rounded-md object-cover shrink-0 border border-border"
                 />
               ) : (
-                <div className="w-20 h-20 rounded bg-secondary shrink-0" />
+                <div className="w-24 h-24 rounded-md bg-secondary shrink-0 border border-border" />
               )}
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-semibold">
-                  {data.data.subscription.title ?? "(untitled feed)"}
-                </h1>
-                <p className="text-xs text-muted-foreground">
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <p className="eyebrow">
                   {data.data.subscription.kind === "youtube_channel"
                     ? "YouTube channel"
                     : "Podcast"}
                 </p>
+                <h1 className="font-serif text-3xl tracking-tightest font-semibold leading-[1.1]">
+                  {data.data.subscription.title ?? "(untitled feed)"}
+                </h1>
               </div>
             </div>
 
-            <section className="space-y-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Recent episodes
-              </h2>
+            <section className="space-y-3">
+              <h2 className="eyebrow">Recent episodes</h2>
               {data.data.episodes.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   No episodes found in this feed.
