@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     listen_notes_api_key: str = ""
 
+    # Path to a Netscape-format cookies file for yt-dlp. YouTube increasingly
+    # blocks server IPs with "Sign in to confirm you're not a bot"; passing
+    # cookies from a logged-in browser session is the supported workaround.
+    # See https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp
+    yt_dlp_cookies_file: str = ""
+
     # When true, registers a /test/login endpoint that mints a session
     # cookie for any allowlisted email — used by Playwright e2e to skip
     # the Google OAuth flow. NEVER enable in production.

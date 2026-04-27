@@ -7,14 +7,24 @@ import re
 import tempfile
 from pathlib import Path
 
+from podking.config import get_settings
+
 
 class YtDlpError(RuntimeError):
     pass
 
 
+def _auth_args() -> list[str]:
+    """Prepend --cookies <file> when configured so YouTube doesn't reject the
+    request as bot traffic."""
+    cookies_file = get_settings().yt_dlp_cookies_file
+    return ["--cookies", cookies_file] if cookies_file else []
+
+
 async def _run(*args: str) -> tuple[str, str]:
     proc = await asyncio.create_subprocess_exec(
         "yt-dlp",
+        *_auth_args(),
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

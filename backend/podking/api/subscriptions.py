@@ -81,9 +81,13 @@ def _resolve_via_ytdlp(url: str) -> str | None:
     """Use yt-dlp to resolve a channel handle/name to a channel id."""
     import subprocess
 
+    cookies_file = get_settings().yt_dlp_cookies_file
+    auth_args = ["--cookies", cookies_file] if cookies_file else []
+
     try:
         result = subprocess.run(
-            ["yt-dlp", "--no-warnings", "--print", "%(channel_id)s", "--playlist-items", "0", url],
+            ["yt-dlp", *auth_args, "--no-warnings", "--print", "%(channel_id)s",
+             "--playlist-items", "0", url],
             capture_output=True,
             text=True,
             timeout=30,
