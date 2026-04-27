@@ -100,6 +100,7 @@ def _register_test_routes(app: FastAPI) -> None:
     """Routes only mounted when TEST_MODE=1. Used by the Playwright e2e
     suite to bypass Google OAuth — DO NOT enable in production."""
     from fastapi import HTTPException
+
     from podking.repositories.users import upsert_user_from_google
 
     @app.post("/test/login")
