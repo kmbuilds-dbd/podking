@@ -106,12 +106,38 @@ shared).
 ## Tests
 
 ```bash
-uv run pytest                   # backend
+uv run pytest                   # backend (~60 tests, real Postgres)
 cd frontend && npm test         # vitest, when present
 ```
 
-Postgres + pgvector for tests via `testcontainers-python`. External APIs
-are stubbed at the HTTP boundary with `respx`.
+Postgres + pgvector for tests via the local `podking_test` database.
+External APIs are stubbed at the HTTP boundary with `respx` (and
+`monkeypatch` for direct module-level fakes).
+
+### Playwright e2e
+
+A small browser-driven happy-path suite lives in `frontend/e2e/`. Auth
+runs through a `/test/login` route only registered when `TEST_MODE=1`,
+so e2e doesn't need real Google OAuth.
+
+In one terminal, start a test-mode backend:
+
+```bash
+TEST_MODE=1 \
+  ALLOWED_EMAILS=allowed@example.com \
+  APP_BASE_URL=http://127.0.0.1:8001 \
+  GOOGLE_REDIRECT_URI=http://127.0.0.1:8001/auth/callback \
+  uv run uvicorn podking.main:app --host 127.0.0.1 --port 8001
+```
+
+In another, run the suite:
+
+```bash
+cd frontend && npm run e2e          # headless, ~3s for 6 tests
+cd frontend && npm run e2e:ui       # interactive Playwright UI
+```
+
+`TEST_MODE=1` must NEVER be set in production — it bypasses Google OAuth.
 
 ## Deployment (Railway)
 

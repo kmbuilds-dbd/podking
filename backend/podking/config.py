@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     listen_notes_api_key: str = ""
 
+    # When true, registers a /test/login endpoint that mints a session
+    # cookie for any allowlisted email — used by Playwright e2e to skip
+    # the Google OAuth flow. NEVER enable in production.
+    test_mode: bool = False
+
     @field_validator("database_url", mode="before")
     @classmethod
     def _add_asyncpg_driver(cls, v: object) -> object:

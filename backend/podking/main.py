@@ -72,6 +72,9 @@ def create_app() -> FastAPI:
     app.include_router(subscriptions.router)
     app.include_router(reader.router)
 
+    if settings.test_mode:
+        _register_test_routes(app)
+
     if FRONTEND_DIST.exists():
         assets_dir = FRONTEND_DIST / "assets"
         if assets_dir.exists():
@@ -91,6 +94,33 @@ def create_app() -> FastAPI:
             return FileResponse(index_html)
 
     return app
+
+
+def _register_test_routes(app: FastAPI) -> None:
+    """Routes only mounted when TEST_MODE=1. Used by the Playwright e2e
+    suite to bypass Google OAuth — DO NOT enable in production."""
+    from fastapi import HTTPException
+    from podking.repositories.users import upsert_user_from_google
+
+    @app.post("/test/login")
+    async def test_login(request: Request) -> dict[str, str]:
+        email = (request.query_params.get("email") or "").lower()
+        if not email:
+            raise HTTPException(400, "email query param required")
+        if email not in get_settings().allowed_email_set:
+            raise HTTPException(403, "email not on allowlist")
+
+        sm = get_sessionmaker()
+        async with sm() as db:
+            user = await upsert_user_from_google(
+                db,
+                google_sub=f"test-{email}",
+                email=email,
+                display_name="Test User",
+            )
+            await db.commit()
+            request.session["user_id"] = str(user.id)
+            return {"user_id": str(user.id), "email": email}
 
 
 app = create_app()
