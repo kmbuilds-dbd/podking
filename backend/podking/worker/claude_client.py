@@ -32,7 +32,10 @@ You are a precise summarizer. Given a transcript, produce a JSON object with the
   short paragraph (up to ~6 sentences). Length and depth are guided by the
   analysis-style instructions below.
 - "quotes": list of objects {"text": str, "speaker": str or null} for notable verbatim quotes (0-5)
-- "suggested_tags": list of 2-6 lowercase topic tags (strings)
+- "suggested_tags": list of exactly 3 lowercase topic tags (strings).
+  Pick the broadest, most distinctive themes — the kind of tag a
+  reader would actually filter their library by, not every topic
+  mentioned. Avoid near-synonyms.
 
 Respond ONLY with the JSON object, no markdown, no explanation."""
 

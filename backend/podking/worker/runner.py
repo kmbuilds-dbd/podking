@@ -207,7 +207,10 @@ async def _summarize_and_embed(
         db.add(summary)
         await db.flush()
 
-        suggested_tags = list(content.get("suggested_tags") or [])  # type: ignore[call-overload]
+        # Cap LLM-suggested tags at 3 even if Claude returns more — the prompt
+        # asks for exactly 3, but enforcing in code keeps the library clean
+        # if Claude ever drifts.
+        suggested_tags = list(content.get("suggested_tags") or [])[:3]  # type: ignore[call-overload]
         for tag_name in suggested_tags:
             tag_result = await db.execute(
                 select(Tag).where(Tag.user_id == user_id, Tag.name == str(tag_name))
