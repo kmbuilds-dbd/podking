@@ -81,8 +81,10 @@ def _resolve_via_ytdlp(url: str) -> str | None:
     """Use yt-dlp to resolve a channel handle/name to a channel id."""
     import subprocess
 
-    cookies_file = get_settings().yt_dlp_cookies_file
-    auth_args = ["--cookies", cookies_file] if cookies_file else []
+    from podking.worker.youtube import cookies_path
+
+    cookies = cookies_path()
+    auth_args = ["--cookies", cookies] if cookies else []
 
     try:
         result = subprocess.run(

@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # See https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp
     yt_dlp_cookies_file: str = ""
 
+    # Raw Netscape-format cookies content. Useful on PaaS like Railway where
+    # mounting files is awkward — paste the file body into a multi-line env
+    # var and the app materializes it to a temp file at first use. Ignored
+    # when yt_dlp_cookies_file is set.
+    yt_dlp_cookies: str = ""
+
     # When true, registers a /test/login endpoint that mints a session
     # cookie for any allowlisted email — used by Playwright e2e to skip
     # the Google OAuth flow. NEVER enable in production.

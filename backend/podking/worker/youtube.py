@@ -14,11 +14,37 @@ class YtDlpError(RuntimeError):
     pass
 
 
+_materialized_cookies_path: str | None = None
+
+
+def cookies_path() -> str | None:
+    """Resolve the cookies file yt-dlp should use.
+
+    Precedence: explicit file path wins; otherwise raw cookie content from
+    settings is materialized to a temp file once per process so PaaS users
+    can supply cookies via a multi-line env var.
+    """
+    global _materialized_cookies_path
+    settings = get_settings()
+    if settings.yt_dlp_cookies_file:
+        return settings.yt_dlp_cookies_file
+    if not settings.yt_dlp_cookies:
+        return None
+    if _materialized_cookies_path is None:
+        path = Path(tempfile.gettempdir()) / "podking-yt-cookies.txt"
+        path.write_text(settings.yt_dlp_cookies)
+        # Cookies can refresh tokens; keep mode permissive enough for that
+        # but locked down from other users on the host.
+        path.chmod(0o600)
+        _materialized_cookies_path = str(path)
+    return _materialized_cookies_path
+
+
 def _auth_args() -> list[str]:
     """Prepend --cookies <file> when configured so YouTube doesn't reject the
     request as bot traffic."""
-    cookies_file = get_settings().yt_dlp_cookies_file
-    return ["--cookies", cookies_file] if cookies_file else []
+    path = cookies_path()
+    return ["--cookies", path] if path else []
 
 
 async def _run(*args: str) -> tuple[str, str]:
