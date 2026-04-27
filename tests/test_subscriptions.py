@@ -15,7 +15,6 @@ async def test_create_podcast_subscription(seeded_client: AsyncClient) -> None:
     data = resp.json()
     assert data["kind"] == "podcast_feed"
     assert data["feed_url"] == "https://feeds.example.com/podcast.xml"
-    assert data["active"] is True
 
 
 @pytest.mark.asyncio
@@ -40,21 +39,6 @@ async def test_duplicate_subscription_rejected(seeded_client: AsyncClient) -> No
         json={"url": "https://feeds.example.com/dup.xml"},
     )
     assert resp.status_code == 409
-
-
-@pytest.mark.asyncio
-async def test_toggle_subscription(seeded_client: AsyncClient) -> None:
-    resp = await seeded_client.post(
-        "/api/subscriptions",
-        json={"url": "https://feeds.example.com/toggle.xml"},
-    )
-    sub_id = resp.json()["id"]
-    resp2 = await seeded_client.patch(
-        f"/api/subscriptions/{sub_id}",
-        json={"active": False},
-    )
-    assert resp2.status_code == 200
-    assert resp2.json()["active"] is False
 
 
 @pytest.mark.asyncio

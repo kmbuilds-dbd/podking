@@ -102,7 +102,6 @@ export interface Subscription {
   title: string | null
   image_url: string | null
   last_checked_at: string | null
-  active: boolean
   created_at: string
 }
 
@@ -180,12 +179,6 @@ export const createSubscription = (url: string) =>
 
 export const deleteSubscription = (id: string) =>
   api<void>(`/api/subscriptions/${id}`, { method: "DELETE" })
-
-export const patchSubscription = (id: string, active: boolean) =>
-  api<Subscription>(`/api/subscriptions/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ active }),
-  })
 
 export interface PodcastSearchResult {
   id: string

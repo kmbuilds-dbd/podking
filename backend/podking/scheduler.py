@@ -43,7 +43,6 @@ async def _poll_due_subscriptions() -> None:
         cutoff = datetime.now(UTC) - timedelta(seconds=POLL_INTERVAL_SECONDS)
         result = await db.execute(
             select(Subscription).where(
-                Subscription.active.is_(True),
                 (Subscription.last_checked_at.is_(None))
                 | (Subscription.last_checked_at < cutoff),
             )

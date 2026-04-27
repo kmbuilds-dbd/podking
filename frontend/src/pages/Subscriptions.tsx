@@ -5,7 +5,6 @@ import {
   listSubscriptions,
   createSubscription,
   deleteSubscription,
-  patchSubscription,
   searchPodcasts,
 } from "@/api"
 import { TopNav } from "@/components/TopNav"
@@ -15,11 +14,6 @@ import type { PodcastSearchResult, Subscription } from "@/api"
 
 function SubRow({ sub }: { sub: Subscription }) {
   const qc = useQueryClient()
-
-  const toggle = useMutation({
-    mutationFn: () => patchSubscription(sub.id, !sub.active),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["subscriptions"] }),
-  })
 
   const del = useMutation({
     mutationFn: () => deleteSubscription(sub.id),
@@ -54,20 +48,15 @@ function SubRow({ sub }: { sub: Subscription }) {
         </div>
       </Link>
       <Button
-        variant="outline"
-        size="sm"
-        onClick={() => toggle.mutate()}
-        disabled={toggle.isPending}
-        className={sub.active ? "" : "opacity-50"}
-      >
-        {sub.active ? "Active" : "Paused"}
-      </Button>
-      <Button
         variant="ghost"
         size="sm"
-        onClick={() => { if (confirm("Remove subscription?")) del.mutate() }}
+        onClick={() => {
+          if (confirm("Remove subscription?")) del.mutate()
+        }}
         disabled={del.isPending}
-        className="text-red-600 hover:text-red-700"
+        className="text-muted-foreground hover:text-destructive"
+        aria-label="Remove subscription"
+        title="Remove subscription"
       >
         ×
       </Button>

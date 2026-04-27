@@ -16,7 +16,6 @@ from podking.models import Episode, Job, Subscription, User
 from podking.schemas import (
     JobResponse,
     SubscriptionCreate,
-    SubscriptionPatch,
     SubscriptionResponse,
 )
 from podking.worker import feed as feed_helpers
@@ -165,23 +164,6 @@ async def delete_subscription(
         raise HTTPException(status_code=404, detail="subscription not found")
     await db.delete(sub)
     await db.commit()
-
-
-@router.patch("/subscriptions/{sub_id}", response_model=SubscriptionResponse)
-async def patch_subscription(
-    sub_id: uuid.UUID,
-    body: SubscriptionPatch,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(current_user),
-) -> SubscriptionResponse:
-    sub = await db.get(Subscription, sub_id)
-    if sub is None or sub.user_id != user.id:
-        raise HTTPException(status_code=404, detail="subscription not found")
-    sub.active = body.active
-    db.add(sub)
-    await db.commit()
-    await db.refresh(sub)
-    return SubscriptionResponse.model_validate(sub)
 
 
 # ── podcast search via Listen Notes ───────────────────────────────────────────

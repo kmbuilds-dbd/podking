@@ -145,10 +145,6 @@ class SubscriptionCreate(BaseModel):
     url: str
 
 
-class SubscriptionPatch(BaseModel):
-    active: bool
-
-
 class SubscriptionResponse(BaseModel):
     id: uuid.UUID
     kind: str
@@ -156,7 +152,6 @@ class SubscriptionResponse(BaseModel):
     title: str | None
     image_url: str | None
     last_checked_at: datetime | None
-    active: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
