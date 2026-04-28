@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # when yt_dlp_cookies_file is set.
     yt_dlp_cookies: str = ""
 
+    # URL of a bgutil-ytdlp-pot-provider HTTP server. Required on datacenter
+    # IPs (Railway, AWS, GCP) where YouTube rejects requests despite valid
+    # cookies. Deploy brainicism/bgutil-ytdlp-pot-provider as a sidecar and
+    # point this at its internal URL, e.g.
+    #   http://bgutil-provider.railway.internal:4416
+    yt_dlp_pot_provider_url: str = ""
+
     # When true, registers a /test/login endpoint that mints a session
     # cookie for any allowlisted email — used by Playwright e2e to skip
     # the Google OAuth flow. NEVER enable in production.

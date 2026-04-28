@@ -69,6 +69,7 @@ def cookies_path() -> str | None:
         _log_cookies_diag("file", settings.yt_dlp_cookies_file)
         return settings.yt_dlp_cookies_file
     if not settings.yt_dlp_cookies:
+        _log_no_cookies()
         return None
     if _materialized_cookies_path is None:
         path = Path(tempfile.gettempdir()) / "podking-yt-cookies.txt"
@@ -81,11 +82,47 @@ def cookies_path() -> str | None:
     return _materialized_cookies_path
 
 
+_logged_no_cookies = False
+
+
+def _log_no_cookies() -> None:
+    """Make 'no cookies configured' explicit in logs so we can distinguish
+    'env var didn't arrive' from 'old code without diagnostics'."""
+    global _logged_no_cookies
+    if _logged_no_cookies:
+        return
+    _logged_no_cookies = True
+    log.warning(
+        "yt-dlp cookies NOT configured: neither YT_DLP_COOKIES_FILE nor "
+        "YT_DLP_COOKIES is set in the environment. YouTube will reject "
+        "requests from this server's IP as bot traffic."
+    )
+
+
+_logged_auth_args = False
+
+
 def _auth_args() -> list[str]:
-    """Prepend --cookies <file> when configured so YouTube doesn't reject the
-    request as bot traffic."""
+    """Cookies + PO token provider args for yt-dlp. Cookies prove who we are;
+    the PO token proves the request originated somewhere YouTube tolerates,
+    which is necessary on datacenter IPs even when cookies are valid."""
+    global _logged_auth_args
+    args: list[str] = []
     path = cookies_path()
-    return ["--cookies", path] if path else []
+    if path:
+        args += ["--cookies", path]
+    pot_url = get_settings().yt_dlp_pot_provider_url
+    if pot_url:
+        args += ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}"]
+    if not _logged_auth_args:
+        _logged_auth_args = True
+        log.info(
+            "yt-dlp auth args: cookies=%s pot_url=%s -> %s",
+            "yes" if path else "no",
+            pot_url or "(unset)",
+            args,
+        )
+    return args
 
 
 async def _run(*args: str) -> tuple[str, str]:
