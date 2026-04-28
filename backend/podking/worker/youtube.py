@@ -100,10 +100,17 @@ def _log_no_cookies() -> None:
 
 
 def _auth_args() -> list[str]:
-    """Prepend --cookies <file> when configured so YouTube doesn't reject the
-    request as bot traffic."""
+    """Cookies + PO token provider args for yt-dlp. Cookies prove who we are;
+    the PO token proves the request originated somewhere YouTube tolerates,
+    which is necessary on datacenter IPs even when cookies are valid."""
+    args: list[str] = []
     path = cookies_path()
-    return ["--cookies", path] if path else []
+    if path:
+        args += ["--cookies", path]
+    pot_url = get_settings().yt_dlp_pot_provider_url
+    if pot_url:
+        args += ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}"]
+    return args
 
 
 async def _run(*args: str) -> tuple[str, str]:
