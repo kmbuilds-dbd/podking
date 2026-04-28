@@ -99,10 +99,14 @@ def _log_no_cookies() -> None:
     )
 
 
+_logged_auth_args = False
+
+
 def _auth_args() -> list[str]:
     """Cookies + PO token provider args for yt-dlp. Cookies prove who we are;
     the PO token proves the request originated somewhere YouTube tolerates,
     which is necessary on datacenter IPs even when cookies are valid."""
+    global _logged_auth_args
     args: list[str] = []
     path = cookies_path()
     if path:
@@ -110,6 +114,14 @@ def _auth_args() -> list[str]:
     pot_url = get_settings().yt_dlp_pot_provider_url
     if pot_url:
         args += ["--extractor-args", f"youtubepot-bgutilhttp:base_url={pot_url}"]
+    if not _logged_auth_args:
+        _logged_auth_args = True
+        log.info(
+            "yt-dlp auth args: cookies=%s pot_url=%s -> %s",
+            "yes" if path else "no",
+            pot_url or "(unset)",
+            args,
+        )
     return args
 
 
