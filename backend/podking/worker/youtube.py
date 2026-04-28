@@ -69,6 +69,7 @@ def cookies_path() -> str | None:
         _log_cookies_diag("file", settings.yt_dlp_cookies_file)
         return settings.yt_dlp_cookies_file
     if not settings.yt_dlp_cookies:
+        _log_no_cookies()
         return None
     if _materialized_cookies_path is None:
         path = Path(tempfile.gettempdir()) / "podking-yt-cookies.txt"
@@ -79,6 +80,23 @@ def cookies_path() -> str | None:
         _materialized_cookies_path = str(path)
     _log_cookies_diag("env", _materialized_cookies_path)
     return _materialized_cookies_path
+
+
+_logged_no_cookies = False
+
+
+def _log_no_cookies() -> None:
+    """Make 'no cookies configured' explicit in logs so we can distinguish
+    'env var didn't arrive' from 'old code without diagnostics'."""
+    global _logged_no_cookies
+    if _logged_no_cookies:
+        return
+    _logged_no_cookies = True
+    log.warning(
+        "yt-dlp cookies NOT configured: neither YT_DLP_COOKIES_FILE nor "
+        "YT_DLP_COOKIES is set in the environment. YouTube will reject "
+        "requests from this server's IP as bot traffic."
+    )
 
 
 def _auth_args() -> list[str]:
