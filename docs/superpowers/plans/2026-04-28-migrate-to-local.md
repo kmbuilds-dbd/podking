@@ -18,12 +18,9 @@ Locked:
 
 1. **Runtime: Docker Desktop on Windows with the WSL2 backend, orchestrated by `docker compose`.** Reuses the existing `Dockerfile` (app) plus `pgvector/pgvector:pg16` (db) and `cloudflare/cloudflared` (tunnel) as sibling services. No NSSM, no native uv install on the host.
 2. **STT: stay on ElevenLabs Scribe.** Local transcription is deferred — see "Follow-up: local Whisper" below.
-
-Still to capture before kicking off Phase 1 (commit answers back into this file):
-
-3. **Database migration:** is anything in Railway's Postgres worth keeping (subscriptions, summaries, user settings)? If yes, add a `pg_dump` / `pg_restore` step. If no, fresh DB.
-4. **Cloudflare hostname:** the public DNS name podking will live at, e.g. `podking.example.com`. Needed for OAuth redirect URI and `APP_BASE_URL`.
-5. **Audio cache location on Windows:** the host path that gets bind-mounted into the `app` container as `/data/audio`. Needs to survive container rebuilds and ideally live on a drive with enough room for ~7 days of cached MP3s (retention scheduler TTLs them).
+3. **Database migration: fresh start.** Nothing from Railway's Postgres is preserved — no `pg_dump`/`pg_restore` step. The first sign-in on the new instance creates a fresh user row; subscriptions and summaries get re-added by hand.
+4. **Cloudflare hostname: `podking.athinkingpmat.work`.** Drives `APP_BASE_URL` and the OAuth redirect URI.
+5. **Audio cache on Windows: `C:\Users\Nvidia_Gaming\Documents\claude\podking\audio`.** Bind-mounted into the `app` container at `/data/audio`. Compose creates the directory on first up if it doesn't exist; the retention scheduler TTLs files after ~7 days.
 
 ---
 
@@ -37,14 +34,13 @@ Goal: same app, same pipeline (still using ElevenLabs), running on Windows under
   - `db` — `pgvector/pgvector:pg16`, named volume `podking-db`, env `POSTGRES_USER/PASSWORD/DB=podking`. No published port; only `app` connects over the compose network.
   - `cloudflared` — `cloudflare/cloudflared:latest`, command `tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}`, `restart: unless-stopped`. Tunnel ingress points at `http://app:8000`.
   - → verify: `docker compose config` parses cleanly; `docker compose up -d` brings all three to `running`.
-- [ ] (If keeping data) `pg_dump --no-owner` from Railway → `pg_restore` into the `db` container (`docker compose exec -T db psql -U podking -d podking < dump.sql`). Verify row counts match for `users`, `subscriptions`, `episodes`, `summaries`.
-- [ ] Configure the Cloudflare Tunnel route in the dashboard: `https://<hostname>` → `http://app:8000` (using the named tunnel whose token we set above). → verify: `https://<hostname>/healthz` returns 200 from off-network (e.g. phone on cell data).
-- [ ] Update Google Cloud Console OAuth client: add `https://<hostname>/auth/callback` to Authorized redirect URIs. Leave the Railway URI in place until cutover is done; remove afterward.
+- [ ] Configure the Cloudflare Tunnel route in the dashboard: `https://podking.athinkingpmat.work` → `http://app:8000` (using the named tunnel whose token we set above). → verify: `https://podking.athinkingpmat.work/healthz` returns 200 from off-network (e.g. phone on cell data).
+- [ ] Update Google Cloud Console OAuth client: add `https://podking.athinkingpmat.work/auth/callback` to Authorized redirect URIs. Leave the Railway URI in place until cutover is done; remove afterward.
 - [ ] Create `.env` at the repo root (consumed by Compose):
   - `DATABASE_URL=postgresql://podking:<pw>@db:5432/podking` (note: hostname `db`, not `localhost`).
-  - `APP_BASE_URL=https://<hostname>`
-  - `GOOGLE_REDIRECT_URI=https://<hostname>/auth/callback`
-  - `AUDIO_STORAGE_PATH=/data/audio` (in-container path; the host path is set in the compose bind mount).
+  - `APP_BASE_URL=https://podking.athinkingpmat.work`
+  - `GOOGLE_REDIRECT_URI=https://podking.athinkingpmat.work/auth/callback`
+  - `AUDIO_STORAGE_PATH=/data/audio` (in-container path; host path `C:\Users\Nvidia_Gaming\Documents\claude\podking\audio` is set in the compose bind mount).
   - `SESSION_SECRET_KEY`, `FERNET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `LISTEN_NOTES_API_KEY` — copied from Railway.
   - `YT_DLP_COOKIES_FILE` or `YT_DLP_COOKIES` — keep for now; cookies on residential IPs help with rate limits even when not strictly required.
   - `CLOUDFLARE_TUNNEL_TOKEN` — from the Cloudflare dashboard; only consumed by the `cloudflared` service.
