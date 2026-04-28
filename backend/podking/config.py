@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     #   http://bgutil-provider.railway.internal:4416
     yt_dlp_pot_provider_url: str = ""
 
+    # transcriptapi.com API key. When set, the worker uses TranscriptAPI as
+    # the preferred captions path for YouTube jobs — it fetches transcripts
+    # from residential infrastructure, sidestepping YouTube's bot-check on
+    # datacenter IPs. Stopgap for Railway; leave blank on residential hosts.
+    transcript_api_key: str = ""
+
     # When true, registers a /test/login endpoint that mints a session
     # cookie for any allowlisted email — used by Playwright e2e to skip
     # the Google OAuth flow. NEVER enable in production.

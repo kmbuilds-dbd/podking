@@ -11,7 +11,7 @@ import feedparser
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from podking.config import get_settings
+from podking.config import Settings, get_settings
 from podking.crypto import decrypt
 from podking.db import get_sessionmaker
 from podking.models import Episode, Job, Summary, SummaryTag, Tag, Transcript, UserSettings
@@ -237,6 +237,15 @@ async def _run_youtube_job(job: Job) -> None:
     source_url = job.source_url or ""
     video_id = youtube.extract_video_id(source_url)
 
+    # Stopgap for Railway: try TranscriptAPI first if configured. It bypasses
+    # YouTube's datacenter-IP bot-check by fetching from residential hosts.
+    # On success we have metadata + transcript in one call and skip yt-dlp.
+    # On failure (no captions, service error, etc.), fall through to the
+    # original pipeline.
+    if settings_cfg.transcript_api_key:
+        if await _try_transcript_api(job, video_id, source_url, settings_cfg):
+            return
+
     await _update_progress(job.id, 5, "Fetching metadata…")
 
     meta = await youtube.fetch_metadata(source_url)
@@ -292,6 +301,52 @@ async def _run_youtube_job(job: Job) -> None:
     await _upsert_transcript(episode_id, transcript_source, transcript_text)
     await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
     await _complete_job(job.id, episode_id)
+
+
+async def _try_transcript_api(
+    job: Job,
+    video_id: str,
+    source_url: str,
+    settings_cfg: Settings,
+) -> bool:
+    """Try fetching the episode via TranscriptAPI. Returns True if the job
+    completed via this path, False if the caller should fall back to yt-dlp."""
+    from podking.worker import transcript_api_client
+
+    await _update_progress(job.id, 10, "Fetching transcript via TranscriptAPI…")
+    try:
+        data = await transcript_api_client.fetch(
+            source_url, settings_cfg.transcript_api_key
+        )
+    except transcript_api_client.TranscriptApiError as exc:
+        log.warning("TranscriptAPI failed for %s: %s — falling back to yt-dlp",
+                    video_id, exc)
+        return False
+
+    duration = int(data["duration_seconds"])
+    if duration and duration > settings_cfg.max_duration_seconds:
+        raise RuntimeError(
+            f"Video exceeds configured max duration "
+            f"({settings_cfg.max_duration_seconds}s)"
+        )
+
+    episode_id = await _upsert_episode(
+        user_id=job.user_id,
+        source_type="youtube",
+        source_url=source_url,
+        external_id=video_id,
+        title=str(data["title"]),
+        author=str(data["author"]),
+        duration_seconds=duration,
+        thumbnail_url=str(data["thumbnail_url"]),
+    )
+    await _link_job_episode(job.id, episode_id)
+
+    transcript_text = str(data["transcript_text"])
+    await _upsert_transcript(episode_id, "transcriptapi", transcript_text)
+    await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
+    await _complete_job(job.id, episode_id)
+    return True
 
 
 # ── Podcast job ───────────────────────────────────────────────────────────────
