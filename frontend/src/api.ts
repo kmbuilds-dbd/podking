@@ -236,3 +236,37 @@ export const processSubscriptionEpisode = (id: string, external_id: string) =>
     method: "POST",
     body: JSON.stringify({ external_id }),
   })
+
+// ── audio episodes ───────────────────────────────────────────────────────
+
+export interface AudioEpisode {
+  id: string
+  summary_id: string
+  job_id: string | null
+  title: string
+  description: string
+  duration_sec: number
+  size_bytes: number
+  published_url: string | null
+  created_at: string
+}
+
+export interface AudioJobCreated {
+  job_id: string
+  audio_episode_id: string | null
+}
+
+export const generateSummaryAudio = (
+  summaryId: string,
+  regenerate = false,
+) =>
+  api<AudioJobCreated>(
+    `/api/summaries/${summaryId}/audio${regenerate ? "?regenerate=true" : ""}`,
+    { method: "POST" },
+  )
+
+export const listAudioEpisodes = () =>
+  api<AudioEpisode[]>(`/api/audio_episodes`)
+
+export const getAudioEpisode = (id: string) =>
+  api<AudioEpisode>(`/api/audio_episodes/${id}`)
