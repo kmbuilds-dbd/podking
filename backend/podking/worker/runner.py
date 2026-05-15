@@ -639,13 +639,24 @@ async def _run_tts_job(job: Job) -> None:
         pub_date=formatdate(localtime=False, usegmt=True),
     )
 
-    async with _publish_lock:
-        published_url = await pub_mod.publish_audio_episode(
-            new_episode=new_published,
-            live_episodes=live_snapshot,
-            archived_filenames=archived_filenames,
-            ctx=ctx,
-        )
+    try:
+        async with _publish_lock:
+            published_url = await pub_mod.publish_audio_episode(
+                new_episode=new_published,
+                live_episodes=live_snapshot,
+                archived_filenames=archived_filenames,
+                ctx=ctx,
+            )
+    except Exception:
+        # Publish failed but the AudioEpisode row was already inserted.
+        # Archive it so the next regenerate attempt doesn't 409, and so the
+        # frontend doesn't render a half-finished episode.
+        async with sm() as db:
+            ae = await db.get(AudioEpisode, audio_episode_id)
+            if ae is not None:
+                ae.archived_at = datetime.now(UTC)
+                await db.commit()
+        raise
 
     async with sm() as db:
         ae = await db.get(AudioEpisode, audio_episode_id)

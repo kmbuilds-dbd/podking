@@ -16,11 +16,12 @@ FROM python:3.13-slim AS runtime
 
 # Runtime deps:
 #   - ffmpeg for audio extraction (yt-dlp / ElevenLabs upload)
+#   - git for the TTS publisher (clones + pushes to GitHub Pages)
 #   - ca-certificates for HTTPS to external APIs
 #   - curl is handy for healthcheck debugging
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates ffmpeg curl \
+        ca-certificates ffmpeg git curl \
     && rm -rf /var/lib/apt/lists/*
 
 # uv: pinned binary copy from the official image. Faster than installing
