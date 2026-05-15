@@ -13,6 +13,8 @@ type SettingsResp = {
   anthropic_key: { set: boolean }
   elevenlabs_key: { set: boolean }
   voyage_key: { set: boolean }
+  tts_voice_a_id: string | null
+  tts_voice_b_id: string | null
 }
 
 export default function Settings() {
@@ -26,10 +28,16 @@ export default function Settings() {
   const [anthropic, setAnthropic] = useState("")
   const [eleven, setEleven] = useState("")
   const [voyage, setVoyage] = useState("")
+  const [voiceA, setVoiceA] = useState("")
+  const [voiceB, setVoiceB] = useState("")
   const [tokenCopied, setTokenCopied] = useState(false)
 
   useEffect(() => {
-    if (settings.data) setPrompt(settings.data.system_prompt)
+    if (settings.data) {
+      setPrompt(settings.data.system_prompt)
+      setVoiceA(settings.data.tts_voice_a_id ?? "")
+      setVoiceB(settings.data.tts_voice_b_id ?? "")
+    }
   }, [settings.data])
 
   const feed = useQuery({
@@ -211,12 +219,51 @@ export default function Settings() {
         </div>
       </div>
 
+      <div className="space-y-4 border-t pt-6">
+        <div>
+          <Label htmlFor="tts_voice_a">Host A voice ID (optional)</Label>
+          <Input
+            id="tts_voice_a"
+            type="text"
+            placeholder="Leave blank to use server default"
+            value={voiceA}
+            onChange={(e) => setVoiceA(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="tts_voice_b">Host B voice ID (optional)</Label>
+          <Input
+            id="tts_voice_b"
+            type="text"
+            placeholder="Leave blank to use server default"
+            value={voiceB}
+            onChange={(e) => setVoiceB(e.target.value)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Browse voices at{" "}
+          <a
+            className="underline"
+            href="https://elevenlabs.io/app/voice-library"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            elevenlabs.io/app/voice-library
+          </a>
+          {" "}and paste a voice ID. Empty means use the server's default for that host.
+        </p>
+      </div>
+
       <Button
         onClick={() => {
           const body: Record<string, string> = { system_prompt: prompt }
           if (anthropic) body.anthropic_api_key = anthropic
           if (eleven) body.elevenlabs_api_key = eleven
           if (voyage) body.voyage_api_key = voyage
+          if (voiceA !== (settings.data?.tts_voice_a_id ?? ""))
+            body.tts_voice_a_id = voiceA
+          if (voiceB !== (settings.data?.tts_voice_b_id ?? ""))
+            body.tts_voice_b_id = voiceB
           save.mutate(body)
         }}
         disabled={save.isPending}

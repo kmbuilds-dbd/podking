@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
 import { api, UnauthenticatedError } from "@/api"
 
-export type Me = { email: string; display_name: string | null }
+export type Me = {
+  email: string
+  display_name: string | null
+  audio_enabled: boolean
+}
 
 export function useMe() {
   return useQuery<Me>({

@@ -189,7 +189,15 @@ async def mark_interrupted_jobs_failed(db: AsyncSession) -> None:
     await db.execute(
         update(Job)
         .where(
-            Job.status.in_(["fetching", "transcribing", "summarizing", "embedding"])
+            Job.status.in_([
+                "fetching",
+                "transcribing",
+                "summarizing",
+                "embedding",
+                "scripting",
+                "speaking",
+                "publishing",
+            ])
         )
         .values(
             status="failed",

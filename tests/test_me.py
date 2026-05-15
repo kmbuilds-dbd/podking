@@ -50,7 +50,10 @@ async def test_me_returns_user_info(migrated_engine: AsyncEngine) -> None:
         assert (await c.post("/test/_login")).status_code == 200
         resp = await c.get("/api/me")
     assert resp.status_code == 200
-    assert resp.json() == {"email": "allowed@example.com", "display_name": "Me"}
+    body = resp.json()
+    assert body["email"] == "allowed@example.com"
+    assert body["display_name"] == "Me"
+    assert "audio_enabled" in body
 
 
 @pytest.mark.asyncio

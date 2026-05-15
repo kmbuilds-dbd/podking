@@ -7,9 +7,11 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from podking.config import get_settings as get_app_settings
 from podking.deps import current_user, get_db
-from podking.models import Episode, Summary, SummaryTag, Tag, Transcript, User
+from podking.models import AudioEpisode, Episode, Summary, SummaryTag, Tag, Transcript, User
 from podking.schemas import (
+    AudioJobResponse,
     EpisodeResponse,
     SummaryResponse,
     SummaryTagResponse,
@@ -176,3 +178,57 @@ async def patch_summary_tags(
         _summary_query(user.id).where(Summary.id == summary_id)
     )
     return _build_summary_response(result2.scalar_one())
+
+
+@router.post(
+    "/summaries/{summary_id}/audio",
+    response_model=AudioJobResponse,
+    status_code=201,
+)
+async def generate_summary_audio(
+    summary_id: uuid.UUID,
+    regenerate: bool = Query(default=False),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> AudioJobResponse:
+    from podking.models import Job
+    app_cfg = get_app_settings()
+    if not (app_cfg.github_pat and app_cfg.github_audio_repo and app_cfg.github_audio_base_url):
+        raise HTTPException(
+            status_code=503,
+            detail="audio feature not configured on this server",
+        )
+
+    summary = await db.get(Summary, summary_id)
+    if summary is None or summary.user_id != user.id:
+        raise HTTPException(status_code=404, detail="summary not found")
+
+    existing = await db.execute(
+        select(AudioEpisode).where(
+            AudioEpisode.user_id == user.id,
+            AudioEpisode.summary_id == summary_id,
+            AudioEpisode.archived_at.is_(None),
+        )
+    )
+    existing_row = existing.scalar_one_or_none()
+    if existing_row is not None and not regenerate:
+        raise HTTPException(
+            status_code=409,
+            detail={"audio_episode_id": str(existing_row.id),
+                    "message": "audio already exists; pass ?regenerate=true to replace"},
+        )
+
+    job = Job(
+        user_id=user.id,
+        kind="tts",
+        status="queued",
+        episode_id=summary.episode_id,
+        summary_id=summary_id,
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    return AudioJobResponse(
+        job_id=job.id,
+        audio_episode_id=existing_row.id if existing_row else None,
+    )

@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     listen_notes_api_key: str = ""
 
+    # ── TTS defaults (used when UserSettings.tts_voice_* is null) ────────
+    elevenlabs_tts_default_voice_a: str = "21m00Tcm4TlvDq8ikWAM"  # Rachel
+    elevenlabs_tts_default_voice_b: str = "AZnzlk1XvdvUeBnXmlld"  # Domi
+    elevenlabs_tts_model_id: str = "eleven_turbo_v2_5"
+
+    # ── Personal podcast feed (GitHub Pages) ─────────────────────────────
+    # Empty values disable the audio feature; the API will return 503 and
+    # the UI hides the "Generate audio" button (see GET /api/me).
+    github_pat: str = ""
+    github_audio_repo: str = ""        # e.g. "octocat/podking-audio"
+    github_audio_base_url: str = ""    # e.g. "https://octocat.github.io/podking-audio"
+    podking_feed_owner_email: str = ""
+
     # Path to a Netscape-format cookies file for yt-dlp. YouTube increasingly
     # blocks server IPs with "Sign in to confirm you're not a bot"; passing
     # cookies from a logged-in browser session is the supported workaround.

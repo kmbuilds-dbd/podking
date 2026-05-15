@@ -6,15 +6,18 @@ from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -51,6 +54,9 @@ class User(Base):
     subscriptions: Mapped[list[Subscription]] = relationship(
         "Subscription", back_populates="user"
     )
+    audio_episodes: Mapped[list[AudioEpisode]] = relationship(
+        "AudioEpisode", back_populates="user"
+    )
 
 
 class UserSettings(Base):
@@ -71,6 +77,8 @@ class UserSettings(Base):
     voyage_api_key_encrypted: Mapped[bytes | None] = mapped_column(
         LargeBinary, nullable=True
     )
+    tts_voice_a_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tts_voice_b_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -122,11 +130,12 @@ class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('youtube', 'podcast', 'resummarize', 'feed_episode')",
+            "kind IN ('youtube', 'podcast', 'resummarize', 'feed_episode', 'tts')",
             name="ck_job_kind",
         ),
         CheckConstraint(
-            "status IN ('queued','fetching','transcribing','summarizing','embedding','done','failed')",  # noqa: E501
+            "status IN ('queued','fetching','transcribing','summarizing','embedding',"
+            "'scripting','speaking','publishing','done','failed')",
             name="ck_job_status",
         ),
     )
@@ -141,6 +150,11 @@ class Job(Base):
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     episode_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("episodes.id", ondelete="SET NULL"), nullable=True
+    )
+    summary_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("summaries.id", ondelete="SET NULL"),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
     progress_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -158,6 +172,9 @@ class Job(Base):
 
     user: Mapped[User] = relationship("User", back_populates="jobs")
     episode: Mapped[Episode | None] = relationship("Episode", back_populates="jobs")
+    audio_episode: Mapped[AudioEpisode | None] = relationship(
+        "AudioEpisode", back_populates="job", uselist=False
+    )
 
 
 class Transcript(Base):
@@ -212,6 +229,62 @@ class Summary(Base):
     summary_tags: Mapped[list[SummaryTag]] = relationship(
         "SummaryTag", back_populates="summary", cascade="all, delete-orphan"
     )
+    audio_episode: Mapped[AudioEpisode | None] = relationship(
+        "AudioEpisode",
+        back_populates="summary",
+        primaryjoin=(
+            "and_(AudioEpisode.summary_id == Summary.id, "
+            "AudioEpisode.archived_at.is_(None))"
+        ),
+        uselist=False,
+        viewonly=True,
+    )
+
+
+class AudioEpisode(Base):
+    __tablename__ = "audio_episodes"
+    __table_args__ = (
+        Index(
+            "uq_audio_episode_live_per_summary",
+            "user_id",
+            "summary_id",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    summary_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("summaries.id", ondelete="CASCADE"), nullable=False
+    )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    script: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    mp3_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    mp3_path: Mapped[str] = mapped_column(Text, nullable=False)
+    duration_sec: Mapped[int] = mapped_column(Integer, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    voice_a_id: Mapped[str] = mapped_column(Text, nullable=False)
+    voice_b_id: Mapped[str] = mapped_column(Text, nullable=False)
+    published_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="audio_episodes")
+    summary: Mapped[Summary] = relationship("Summary", back_populates="audio_episode")
+    job: Mapped[Job | None] = relationship("Job", back_populates="audio_episode")
 
 
 class Tag(Base):
