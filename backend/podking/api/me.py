@@ -6,13 +6,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from podking.config import get_settings
 from podking.deps import current_user, get_db
 from podking.models import User
+from podking.schemas import MeResponse
 
 router = APIRouter(prefix="/api")
 
 
-@router.get("/me")
-async def me(user: User = Depends(current_user)) -> dict[str, str | None]:
-    return {"email": user.email, "display_name": user.display_name}
+def _audio_enabled() -> bool:
+    s = get_settings()
+    return bool(s.github_pat and s.github_audio_repo and s.github_audio_base_url)
+
+
+@router.get("/me", response_model=MeResponse)
+async def me(user: User = Depends(current_user)) -> MeResponse:
+    return MeResponse(
+        email=user.email,
+        display_name=user.display_name,
+        audio_enabled=_audio_enabled(),
+    )
 
 
 def _new_feed_token() -> str:

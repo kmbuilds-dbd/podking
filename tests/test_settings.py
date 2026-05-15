@@ -51,6 +51,8 @@ async def test_get_settings_returns_defaults(migrated_engine: AsyncEngine) -> No
         "anthropic_key": {"set": False},
         "elevenlabs_key": {"set": False},
         "voyage_key": {"set": False},
+        "tts_voice_a_id": None,
+        "tts_voice_b_id": None,
     }
 
 

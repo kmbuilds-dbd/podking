@@ -16,6 +16,8 @@ class SettingsResponse(BaseModel):
     anthropic_key: KeyStatus
     elevenlabs_key: KeyStatus
     voyage_key: KeyStatus
+    tts_voice_a_id: str | None = None
+    tts_voice_b_id: str | None = None
 
 
 class SettingsPatch(BaseModel):
@@ -23,6 +25,8 @@ class SettingsPatch(BaseModel):
     anthropic_api_key: str | None = None
     elevenlabs_api_key: str | None = None
     voyage_api_key: str | None = None
+    tts_voice_a_id: str | None = None
+    tts_voice_b_id: str | None = None
 
 
 # ── jobs ──────────────────────────────────────────────────────────────────────
@@ -155,3 +159,32 @@ class SubscriptionResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── audio episodes ────────────────────────────────────────────────────────────
+
+class AudioEpisodeResponse(BaseModel):
+    id: uuid.UUID
+    summary_id: uuid.UUID
+    job_id: uuid.UUID | None
+    title: str
+    description: str
+    duration_sec: int
+    size_bytes: int
+    published_url: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AudioJobResponse(BaseModel):
+    """Response for POST /api/summaries/{id}/audio."""
+
+    job_id: uuid.UUID
+    audio_episode_id: uuid.UUID | None
+
+
+class MeResponse(BaseModel):
+    email: str
+    display_name: str | None
+    audio_enabled: bool

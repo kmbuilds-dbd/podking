@@ -23,6 +23,8 @@ async def get_settings(user: User = Depends(current_user)) -> SettingsResponse:
         anthropic_key=KeyStatus(set=s.anthropic_api_key_encrypted is not None),
         elevenlabs_key=KeyStatus(set=s.elevenlabs_api_key_encrypted is not None),
         voyage_key=KeyStatus(set=s.voyage_api_key_encrypted is not None),
+        tts_voice_a_id=s.tts_voice_a_id,
+        tts_voice_b_id=s.tts_voice_b_id,
     )
 
 
@@ -41,6 +43,10 @@ async def patch_settings(
         s.elevenlabs_api_key_encrypted = encrypt(patch.elevenlabs_api_key)
     if patch.voyage_api_key is not None:
         s.voyage_api_key_encrypted = encrypt(patch.voyage_api_key)
+    if patch.tts_voice_a_id is not None:
+        s.tts_voice_a_id = patch.tts_voice_a_id or None
+    if patch.tts_voice_b_id is not None:
+        s.tts_voice_b_id = patch.tts_voice_b_id or None
     db.add(user)
     await db.commit()
     return SettingsResponse(
@@ -48,4 +54,6 @@ async def patch_settings(
         anthropic_key=KeyStatus(set=s.anthropic_api_key_encrypted is not None),
         elevenlabs_key=KeyStatus(set=s.elevenlabs_api_key_encrypted is not None),
         voyage_key=KeyStatus(set=s.voyage_api_key_encrypted is not None),
+        tts_voice_a_id=s.tts_voice_a_id,
+        tts_voice_b_id=s.tts_voice_b_id,
     )
