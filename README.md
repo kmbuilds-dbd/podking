@@ -103,6 +103,42 @@ link" and the app fetches the clean HTML and narrates it. Token lives in
 your user row and is rotatable from Settings (breaks any links you've
 shared).
 
+## Generated podcast feed
+
+Each summary has a **🎙 Generate audio** button that produces a ~5–10
+minute two-host conversation about the summary, published to a personal
+RSS feed you can subscribe to in Apple Podcasts, Spotify, Overcast, or
+any podcast app.
+
+### One-time server setup
+
+1. Create an empty **public** GitHub repo, e.g. `you/podking-audio`,
+   and enable GitHub Pages on the `main` branch root (`/`).
+2. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new)
+   scoped to that one repo with `Contents: read/write` and
+   `Pages: write`.
+3. Set in `.env`:
+   - `GITHUB_PAT=` your PAT
+   - `GITHUB_AUDIO_REPO=you/podking-audio`
+   - `GITHUB_AUDIO_BASE_URL=https://you.github.io/podking-audio`
+   - `PODKING_FEED_OWNER_EMAIL=` your iTunes-owner email
+4. Restart the backend. Each user now gets a personal feed at
+   `${GITHUB_AUDIO_BASE_URL}/u/{feed_token}/feed.xml`.
+
+Subscribers fetch directly from GitHub Pages, so episodes keep working
+even when the podking server is offline — useful if you're running this
+on a home server with intermittent uptime.
+
+### Defaults and overrides
+
+Two ElevenLabs voice IDs ship as `.env` defaults
+(`ELEVENLABS_TTS_DEFAULT_VOICE_A` / `_B`). Users can override either or
+both on the Settings page; leaving a field blank falls back to the
+server default.
+
+Retention: the feed keeps the most recent 30 episodes per user; older
+episodes are pruned from the repo automatically on each publish.
+
 ## Tests
 
 ```bash
