@@ -5,6 +5,7 @@ import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
+from email.utils import formatdate
 from pathlib import Path
 
 import feedparser
@@ -14,12 +15,24 @@ from sqlalchemy.orm import selectinload
 from podking.config import get_settings
 from podking.crypto import decrypt
 from podking.db import get_sessionmaker
-from podking.models import Episode, Job, Summary, SummaryTag, Tag, Transcript, UserSettings
+from podking.models import (
+    AudioEpisode,
+    Episode,
+    Job,
+    Summary,
+    SummaryTag,
+    Tag,
+    Transcript,
+    User,
+    UserSettings,
+)
 from podking.pubsub import publish
 
 log = logging.getLogger(__name__)
 
 POLL_INTERVAL = 2  # seconds
+
+_publish_lock = asyncio.Lock()
 
 
 async def run_worker() -> None:
@@ -62,6 +75,8 @@ async def _process_next_job() -> None:
             await _run_resummarize_job(job)
         elif job.kind == "feed_episode":
             await _run_feed_episode_job(job)
+        elif job.kind == "tts":
+            await _run_tts_job(job)
     except Exception as exc:
         await _fail_job(job.id, str(exc))
         log.exception("Job %s failed", job.id)
@@ -450,6 +465,216 @@ async def _run_resummarize_job(job: Job) -> None:
 
     await _summarize_and_embed(job.id, job.user_id, job.episode_id, transcript_text)
     await _complete_job(job.id, job.episode_id)
+
+
+# ── TTS job ───────────────────────────────────────────────────────────────────
+
+async def _run_tts_job(job: Job) -> None:
+    """Three-stage pipeline: scripting (Claude) → speaking (ElevenLabs) → publishing (git)."""
+    from podking.worker.tts import publisher as pub_mod
+    from podking.worker.tts import scripter as scripter_mod
+    from podking.worker.tts import speaker as speaker_mod
+
+    settings_cfg = get_settings()
+    if not (settings_cfg.github_pat
+            and settings_cfg.github_audio_repo
+            and settings_cfg.github_audio_base_url):
+        raise RuntimeError(
+            "Audio feature is not configured (set GITHUB_PAT, "
+            "GITHUB_AUDIO_REPO, GITHUB_AUDIO_BASE_URL)."
+        )
+
+    if job.summary_id is None:
+        raise RuntimeError("tts job missing summary_id")
+
+    user_settings = await _get_settings(job.user_id)
+    anthropic_key = _require_key(user_settings.anthropic_api_key_encrypted, "Anthropic")
+    elevenlabs_key = _require_key(user_settings.elevenlabs_api_key_encrypted, "ElevenLabs")
+
+    voice_a = user_settings.tts_voice_a_id or settings_cfg.elevenlabs_tts_default_voice_a
+    voice_b = user_settings.tts_voice_b_id or settings_cfg.elevenlabs_tts_default_voice_b
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        summary = await db.get(Summary, job.summary_id)
+        if summary is None or summary.user_id != job.user_id:
+            raise RuntimeError("summary missing for tts job")
+        episode = await db.get(Episode, summary.episode_id)
+        if episode is None:
+            raise RuntimeError("episode missing for summary")
+        summary_content = summary.content if isinstance(summary.content, dict) else {}
+        episode_title = episode.title or "Episode"
+        summary_episode_id = summary.episode_id
+        user_row = await db.get(User, job.user_id)
+        if user_row is None or not user_row.feed_token:
+            raise RuntimeError(
+                "User has no feed_token. Rotate one in Settings before generating audio."
+            )
+        feed_token = user_row.feed_token
+        owner_email = user_row.email
+
+    # ── stage 1: scripting ───────────────────────────────────────────────
+    await _update_job_status(job.id, "scripting")
+    await _update_progress(job.id, 10, "Writing script…")
+    segments = await scripter_mod.write_script(
+        summary=summary_content,
+        anthropic_key=anthropic_key,
+        episode_title=episode_title,
+    )
+
+    # ── stage 2: speaking ────────────────────────────────────────────────
+    await _update_job_status(job.id, "speaking")
+    audio_episode_id = uuid.uuid4()
+    out_dir = Path(settings_cfg.audio_storage_path) / "audio"
+    out_path = out_dir / f"{audio_episode_id}.mp3"
+    char_count = sum(len(s.text) for s in segments)
+    await _update_progress(
+        job.id, 30,
+        f"Generating audio (~{char_count} chars across {len(segments)} segments)…"
+    )
+    synth = await speaker_mod.synthesize(
+        segments=segments,
+        voice_a_id=voice_a,
+        voice_b_id=voice_b,
+        api_key=elevenlabs_key,
+        model_id=settings_cfg.elevenlabs_tts_model_id,
+        out_path=out_path,
+    )
+
+    title = f"{episode_title} — podking"
+    description = str(summary_content.get("tldr") or "podking summary")
+    script_payload = [{"speaker": s.speaker, "text": s.text} for s in segments]
+
+    # ── archive any prior live row + insert new ──────────────────────────
+    prior_filenames: list[str] = []
+    async with sm() as db:
+        existing_result = await db.execute(
+            select(AudioEpisode).where(
+                AudioEpisode.user_id == job.user_id,
+                AudioEpisode.summary_id == job.summary_id,
+                AudioEpisode.archived_at.is_(None),
+            )
+        )
+        for prior in existing_result.scalars():
+            prior.archived_at = datetime.now(UTC)
+            prior_filenames.append(prior.mp3_filename)
+
+        new_row = AudioEpisode(
+            id=audio_episode_id,
+            user_id=job.user_id,
+            summary_id=job.summary_id,
+            job_id=job.id,
+            title=title,
+            description=description,
+            script=script_payload,
+            mp3_filename=f"{audio_episode_id}.mp3",
+            mp3_path=str(out_path),
+            duration_sec=synth.duration_sec,
+            size_bytes=synth.size_bytes,
+            voice_a_id=voice_a,
+            voice_b_id=voice_b,
+        )
+        db.add(new_row)
+        await db.commit()
+
+    # ── stage 3: publishing ──────────────────────────────────────────────
+    await _update_job_status(job.id, "publishing")
+    await _update_progress(job.id, 85, "Publishing to feed…")
+
+    async with sm() as db:
+        all_rows_result = await db.execute(
+            select(AudioEpisode)
+            .where(AudioEpisode.user_id == job.user_id)
+            .order_by(AudioEpisode.created_at.desc())
+        )
+        all_rows = list(all_rows_result.scalars())
+        live_rows = [r for r in all_rows if r.archived_at is None]
+        if len(live_rows) > 30:
+            now = datetime.now(UTC)
+            for stale in live_rows[30:]:
+                stale.archived_at = now
+            live_rows = live_rows[:30]
+        await db.commit()
+
+        # Snapshot the rows we need outside the session for the publisher.
+        live_snapshot = [_to_published_episode(r) for r in live_rows]
+        archived_filenames = list(dict.fromkeys(
+            prior_filenames + [
+                r.mp3_filename for r in all_rows if r.archived_at is not None
+            ]
+        ))
+        # We don't want to ask the publisher to delete the very file we just
+        # wrote. (If a regenerate raced a same-summary archive we already
+        # excluded that by ordering above, but be defensive.)
+        archived_filenames = [
+            fn for fn in archived_filenames if fn != f"{audio_episode_id}.mp3"
+        ]
+
+    if settings_cfg.github_audio_repo.startswith("file://"):
+        clone_url = settings_cfg.github_audio_repo
+    else:
+        clone_url = (
+            f"https://x-access-token:{settings_cfg.github_pat}"
+            f"@github.com/{settings_cfg.github_audio_repo}.git"
+        )
+
+    ctx = pub_mod.PublishContext(
+        clone_url=clone_url,
+        base_url=settings_cfg.github_audio_base_url,
+        feed_token=feed_token,
+        owner_email=settings_cfg.podking_feed_owner_email or owner_email,
+        show_name=f"podking — {owner_email}",
+        show_description="Personal podking-generated podcast feed.",
+        language="en",
+    )
+    new_published = pub_mod.PublishedEpisode(
+        id=audio_episode_id,
+        mp3_path=out_path,
+        mp3_filename=f"{audio_episode_id}.mp3",
+        title=title,
+        description=description,
+        duration=_format_duration(synth.duration_sec),
+        duration_sec=synth.duration_sec,
+        size_bytes=synth.size_bytes,
+        pub_date=formatdate(localtime=False, usegmt=True),
+    )
+
+    async with _publish_lock:
+        published_url = await pub_mod.publish_audio_episode(
+            new_episode=new_published,
+            live_episodes=live_snapshot,
+            archived_filenames=archived_filenames,
+            ctx=ctx,
+        )
+
+    async with sm() as db:
+        ae = await db.get(AudioEpisode, audio_episode_id)
+        if ae is not None:
+            ae.published_url = published_url
+            await db.commit()
+
+    await _complete_job(job.id, episode_id=summary_episode_id)
+
+
+def _format_duration(seconds: int) -> str:
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _to_published_episode(row: AudioEpisode):
+    from podking.worker.tts.publisher import PublishedEpisode
+    return PublishedEpisode(
+        id=row.id,
+        mp3_path=Path(row.mp3_path),
+        mp3_filename=row.mp3_filename,
+        title=row.title,
+        description=row.description,
+        duration=_format_duration(row.duration_sec),
+        duration_sec=row.duration_sec,
+        size_bytes=row.size_bytes,
+        pub_date=formatdate(timeval=row.created_at.timestamp(), localtime=False, usegmt=True),
+    )
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
