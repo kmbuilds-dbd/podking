@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { TopNav } from "@/components/TopNav"
 import { ListenButton } from "@/components/ListenButton"
+import { GenerateAudioButton } from "@/components/GenerateAudioButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { listSummaries, listTags, search } from "@/api"
@@ -57,6 +58,7 @@ function SummaryCard({
             </span>
           )}
           <ListenButton summaryId={summaryId} />
+          <GenerateAudioButton summaryId={summaryId} />
         </div>
       </div>
     </article>
