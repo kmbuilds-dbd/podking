@@ -153,11 +153,16 @@ frontend/src/
 
 3. **publishing** (wrapped in a process-level `asyncio.Lock`)
    - Shallow-clone `GITHUB_AUDIO_REPO` (via `gh repo clone … -- --depth 1`).
-   - Copy MP3 to `u/{feed_token}/episodes/{audio_episode_id}.mp3`.
-   - Scan `audio_episodes` for this user where `archived_at is null`,
-     ordered by `created_at desc`. Anything past row 30 gets
-     `archived_at = now()` and its MP3 unlinked from the working tree.
-   - Render `feed_template.xml` with the kept (≤30) episodes and write
+   - Copy the new MP3 to `u/{feed_token}/episodes/{audio_episode_id}.mp3`.
+   - Reconcile the working tree against the DB for this user:
+     1. Load all `audio_episodes` rows for this user (including the just-
+        archived one a regenerate produces, plus any soft-deleted via
+        the API). Anything with `archived_at is not null` → unlink its
+        MP3 from `u/{feed_token}/episodes/` if present.
+     2. Of the remaining live rows ordered by `created_at desc`, mark
+        anything past row 30 as `archived_at = now()` and unlink its
+        MP3 too.
+   - Render `feed_template.xml` with the ≤30 kept episodes and write
      `u/{feed_token}/feed.xml`. Parse output with
      `xml.etree.ElementTree.fromstring` — bail if malformed.
    - `git add .`, commit (`"Audio: {title}"`), push.
@@ -237,7 +242,10 @@ job honors cancel between segments (i.e. before each ElevenLabs call).
 - **`GenerateAudioButton`** on each summary card. States:
   - "Generate audio" (no `audio_episode` exists)
   - "Generating… {progress_message}" (job in-flight, hooked to SSE)
-  - "▶ Listen / Regenerate" (audio published)
+  - "▶ Listen / Regenerate" (audio published) — the ▶ link points at
+    `audio_episode.published_url` (a GitHub Pages MP3 URL) and opens in
+    a new tab. podking itself does not stream audio; the link goes
+    straight to GitHub Pages.
   - "Failed — retry" (job.status === 'failed', with hover tooltip
     showing `job.error`)
 - **First-publish modal** (only first time a user successfully publishes)
