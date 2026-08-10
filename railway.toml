@@ -4,6 +4,9 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/healthz"
-healthcheckTimeout = 30
+# Generous startup budget: uv-compiled image boots in seconds, but a deploy
+# that applies a pending migration while the previous replica is still
+# serving can briefly exceed 30s while DDL waits for locks.
+healthcheckTimeout = 120
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

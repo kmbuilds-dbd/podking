@@ -3,6 +3,14 @@
 Revision ID: 0010
 Revises: 0009
 Create Date: 2026-08-10
+
+NOTE: the columns intentionally carry NO database-level foreign-key
+constraint. Deploy-time DDL that takes ACCESS EXCLUSIVE locks (FK
+constraint add + validation) blocks behind the still-running previous
+replica during Railway's rolling deploy and blows the healthcheck
+window. The app resolves the link at runtime and already handles a
+missing/orphaned subscription gracefully, so integrity enforcement is
+left to the application layer.
 """
 from __future__ import annotations
 
@@ -22,7 +30,6 @@ def upgrade() -> None:
         sa.Column(
             "subscription_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("subscriptions.id", ondelete="SET NULL"),
             nullable=True,
         ),
     )
@@ -31,7 +38,6 @@ def upgrade() -> None:
         sa.Column(
             "subscription_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("subscriptions.id", ondelete="SET NULL"),
             nullable=True,
         ),
     )

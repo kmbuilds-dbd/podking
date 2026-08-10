@@ -43,6 +43,11 @@ RUN uv sync --frozen --no-dev
 # App configuration that lives outside backend/
 COPY alembic.ini ./
 
+# Boot script: retries migrations against a flaky managed-Postgres proxy,
+# then starts uvicorn from the build-time venv (no `uv run` re-sync).
+COPY scripts/start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 # Built frontend bundle from stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
@@ -55,6 +60,7 @@ ENV AUDIO_STORAGE_PATH=/data/audio
 
 EXPOSE 8000
 
-# Run migrations on boot, then start the app. Uses sh so $PORT (Railway)
-# substitutes at runtime; falls back to 8000 for plain `docker run`.
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn podking.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run migrations on boot (with retries), then start the app. Uses sh so
+# $PORT (Railway) substitutes at runtime; falls back to 8000 for plain
+# `docker run`.
+CMD ["sh", "-c", "./start.sh"]
