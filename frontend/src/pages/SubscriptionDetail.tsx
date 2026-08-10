@@ -98,7 +98,11 @@ export default function SubscriptionDetail() {
   const saveStyle = useMutation({
     mutationFn: (prompt_style_id: string) =>
       patchSubscriptionPromptStyle(id!, prompt_style_id),
-    onSuccess: () => {
+    onSuccess: (subscription) => {
+      qc.setQueryData<Awaited<ReturnType<typeof listSubscriptionEpisodes>>>(
+        ["subscription-episodes", id],
+        (current) => current ? { ...current, subscription } : current,
+      )
       qc.invalidateQueries({ queryKey: ["subscription-episodes", id] })
       qc.invalidateQueries({ queryKey: ["subscriptions"] })
     },
@@ -171,6 +175,7 @@ export default function SubscriptionDetail() {
                       </option>
                     ))}
                   </select>
+                  {saveStyle.isPending && <span>Saving…</span>}
                 </label>
               </div>
             </div>
@@ -191,9 +196,9 @@ export default function SubscriptionDetail() {
                       setPendingExternalId(ep.external_id)
                       summarize.mutate(ep.external_id)
                     }}
-                    isQueueing={
+                    isQueueing={saveStyle.isPending || (
                       pendingExternalId === ep.external_id && summarize.isPending
-                    }
+                    )}
                   />
                 ))}
               </div>
