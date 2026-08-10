@@ -57,7 +57,9 @@ async def list_summaries(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> list[SummaryResponse]:
-    q = _summary_query(user.id).order_by(Summary.created_at.desc()).limit(limit)
+    q = _summary_query(user.id).order_by(
+        Summary.created_at.desc(), Summary.id.desc()
+    ).limit(limit)
 
     if cursor:
         try:
@@ -74,7 +76,16 @@ async def list_summaries(
         ).where(Tag.name == tag, Tag.user_id == user.id)
 
     result = await db.execute(q)
-    return [_build_summary_response(s) for s in result.scalars()]
+    # Re-summarizing creates a new row per run; show only the newest summary
+    # per episode so the library doesn't fill up with stale duplicates.
+    summaries: list[Summary] = []
+    seen: set[uuid.UUID] = set()
+    for s in result.scalars():
+        if s.episode_id in seen:
+            continue
+        seen.add(s.episode_id)
+        summaries.append(s)
+    return [_build_summary_response(s) for s in summaries]
 
 
 @router.get("/summaries/{summary_id}", response_model=SummaryResponse)
