@@ -70,7 +70,11 @@ async def summarize(
         try:
             message = await client.messages.create(
                 model=MODEL,
-                max_tokens=4096,
+                # Custom analysis prompts can define verbose output structures
+                # (e.g. per-player notes for a fantasy style) that far exceed
+                # the default schema's output; give Claude ample headroom so
+                # it doesn't truncate mid-JSON.
+                max_tokens=16384,
                 system=[
                     {
                         "type": "text",
