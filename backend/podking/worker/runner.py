@@ -9,7 +9,7 @@ from email.utils import formatdate
 from pathlib import Path
 
 import feedparser
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from podking.config import get_settings
@@ -228,6 +228,20 @@ async def _summarize_and_embed(
         )
         db.add(summary)
         await db.flush()
+
+        # Replace the episode's previous LLM-suggested tags instead of
+        # accumulating stale ones across re-summaries (an old "drake maye"
+        # tag shouldn't linger after the summary is regenerated). User-added
+        # tags are untouched.
+        await db.execute(
+            delete(SummaryTag)
+            .where(
+                SummaryTag.source == "llm",
+                SummaryTag.summary_id.in_(
+                    select(Summary.id).where(Summary.episode_id == episode_id)
+                ),
+            )
+        )
 
         # Cap LLM-suggested tags at 3 even if Claude returns more — the prompt
         # asks for exactly 3, but enforcing in code keeps the library clean

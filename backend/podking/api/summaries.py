@@ -173,6 +173,11 @@ async def patch_summary_tags(
             db.add(SummaryTag(summary_id=summary_id, tag_id=tag.id, source="user"))
 
     await db.commit()
+    # expire_on_commit=False leaves the in-memory summary_tags collection
+    # holding just-deleted (and missing just-added) links, and selectinload
+    # won't re-populate an already-loaded collection — so expire it and let
+    # the reload below return the real post-edit tags.
+    db.expire(summary, ["summary_tags"])
     # Reload with fresh data
     result2 = await db.execute(
         _summary_query(user.id).where(Summary.id == summary_id)

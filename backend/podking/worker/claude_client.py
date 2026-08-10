@@ -33,9 +33,14 @@ You are a precise summarizer. Given a transcript, produce a JSON object with the
   analysis-style instructions below.
 - "quotes": list of objects {"text": str, "speaker": str or null} for notable verbatim quotes (0-5)
 - "suggested_tags": list of exactly 3 lowercase topic tags (strings).
-  Pick the broadest, most distinctive themes — the kind of tag a
-  reader would actually filter their library by, not every topic
-  mentioned. Avoid near-synonyms.
+  Tags are high-level topics or themes a reader would browse their whole
+  library by (e.g. "ai", "product management", "venture capital",
+  "leadership", "nfl"). NEVER use specific named entities as tags: no
+  people, companies, products, teams, shows, or other proper nouns —
+  "drake maye", "anthropic", or "new england patriots" are content for
+  key_points or quotes, never a tag. A broad category like "nfl" or
+  "fantasy football" is fine when the episode is generally about it.
+  Avoid near-synonyms and don't split one topic into several tags.
 
 Respond ONLY with the JSON object, no markdown, no explanation."""
 

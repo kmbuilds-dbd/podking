@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { TopNav } from "@/components/TopNav"
 import { ListenButton } from "@/components/ListenButton"
 import { GenerateAudioButton } from "@/components/GenerateAudioButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { listSummaries, listTags, search } from "@/api"
+import { listSummaries, listTags, patchSummaryTags, search } from "@/api"
 import type { SearchResult, Summary } from "@/api"
 
 function SummaryCard({
@@ -26,6 +26,15 @@ function SummaryCard({
   href: string
   score?: number
 }) {
+  const qc = useQueryClient()
+  const removeTag = useMutation({
+    mutationFn: (name: string) => patchSummaryTags(summaryId, [], [name]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["summaries"] })
+      qc.invalidateQueries({ queryKey: ["search"] })
+      qc.invalidateQueries({ queryKey: ["tags"] })
+    },
+  })
   return (
     <article className="paper-card p-4 h-full flex flex-col gap-2">
       <Link to={href} className="space-y-1.5 flex-1 group">
@@ -46,9 +55,22 @@ function SummaryCard({
         {tags.slice(0, 4).map((t) => (
           <span
             key={t.name}
-            className="text-[11px] bg-secondary/70 text-secondary-foreground rounded px-1.5 py-0.5"
+            className="group/tag inline-flex items-center gap-1 text-[11px] bg-secondary/70 text-secondary-foreground rounded px-1.5 py-0.5"
           >
             {t.name}
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                removeTag.mutate(t.name)
+              }}
+              disabled={removeTag.isPending}
+              className="opacity-40 hover:opacity-100 transition-opacity leading-none"
+              aria-label={`Remove tag ${t.name}`}
+              title="Remove tag"
+            >
+              ×
+            </button>
           </span>
         ))}
         <div className="ml-auto flex items-center gap-2">
