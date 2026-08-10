@@ -26,7 +26,11 @@ def _extract_json(raw: str) -> dict[str, object]:
     return json.loads(text)  # type: ignore[no-any-return]
 
 SCHEMA_SYSTEM = """\
-You are a precise summarizer. Given a transcript, produce a JSON object with these exact keys:
+You are a precise summarizer. Given a transcript, produce a JSON object.
+
+The analysis-style guidance below is authoritative: if it defines its own
+output structure (fields, keys, formats), follow it exactly. Otherwise use
+this default structure:
 - "tldr": one to two sentences describing what the episode is about and who is on it (string)
 - "key_points": list of 5-12 takeaway strings. Each may be a single sentence or a
   short paragraph (up to ~6 sentences). Length and depth are guided by the

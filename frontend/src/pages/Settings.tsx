@@ -181,10 +181,12 @@ export default function Settings() {
       <div className="space-y-3">
         <Label>Analysis style guidance · general</Label>
         <p className="text-xs text-muted-foreground">
-          Shape <em>how</em> Claude analyzes the transcript — depth, focus, tone, what to emphasize.
-          Output structure is fixed: <code>tldr</code>, <code>key_points</code>, <code>quotes</code>,
-          <code> suggested_tags</code>. Don't include format directives or output-shape instructions
-          here — they'll be ignored.
+          Shape <em>how</em> Claude analyzes the transcript — depth, focus, tone, what to emphasize,
+          and (optionally) the output structure itself. If the prompt defines its own JSON fields,
+          they're used as-is and rendered on the summary page; otherwise the default{" "}
+          <code>tldr</code>, <code>key_points</code>, <code>quotes</code>,{" "}
+          <code>suggested_tags</code> structure applies. Keep the response a single JSON object —
+          no markdown, no prose outside the object.
         </p>
         <Textarea
           rows={8}

@@ -34,10 +34,42 @@ def _h(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _render_generic_section(key: str, value: object) -> str:
+    """Render an arbitrary prompt-defined output field (e.g. PLAYER_NOTES)
+    as escaped HTML: strings as paragraphs, lists as <ol>, dicts as lines."""
+    heading = f"<section><h2>{_h(key.replace('_', ' '))}</h2>"
+    if isinstance(value, str):
+        return heading + f"<p>{_h(value)}</p></section>"
+    if isinstance(value, list):
+        items = []
+        for item in value:
+            if isinstance(item, dict):
+                line = "; ".join(
+                    f"{k}: {v}" for k, v in item.items() if v not in (None, "")
+                )
+                items.append(f"<li>{_h(line)}</li>")
+            else:
+                items.append(f"<li>{_h(item)}</li>")
+        if not items:
+            return ""
+        return heading + "<ol>" + "".join(items) + "</ol></section>"
+    if isinstance(value, dict):
+        line = "; ".join(
+            f"{k}: {v}" for k, v in value.items() if v not in (None, "")
+        )
+        if not line:
+            return ""
+        return heading + f"<p>{_h(line)}</p></section>"
+    return ""
+
+
 def _render_summary(summary: Summary) -> str:
     content = summary.content or {}
     tldr = content.get("tldr") if isinstance(content, dict) else None
     key_points = content.get("key_points") if isinstance(content, dict) else None
+    if key_points is None and isinstance(content, dict):
+        # Custom prompts may use their own key name (e.g. "KEY_POINTS").
+        key_points = content.get("KEY_POINTS")
     quotes = content.get("quotes") if isinstance(content, dict) else None
 
     title = summary.episode.title if summary.episode else None
@@ -84,6 +116,16 @@ def _render_summary(summary: Summary) -> str:
             parts.append(
                 '<section><h2>Notable quotes</h2>' + "".join(blocks) + '</section>'
             )
+
+    # Custom analysis prompts may define additional output fields
+    # (PLAYER_NOTES, notable_disagreements, ...) — render them generically.
+    if isinstance(content, dict):
+        for key, value in content.items():
+            if key in ("tldr", "key_points", "KEY_POINTS", "quotes", "suggested_tags"):
+                continue
+            section = _render_generic_section(key, value)
+            if section:
+                parts.append(section)
 
     if source_url:
         parts.append(

@@ -209,7 +209,14 @@ async def _summarize_and_embed(
         try:
             from podking.worker.voyage_client import embed
             tldr = str(content.get("tldr") or "")
-            key_points = list(content.get("key_points") or [])  # type: ignore[call-overload]
+            # Custom analysis prompts may use their own key names (e.g. the
+            # fantasy style outputs "KEY_POINTS"); embed whatever takeaway
+            # list exists.
+            key_points = list(  # type: ignore[call-overload]
+                content.get("key_points")
+                or content.get("KEY_POINTS")
+                or []
+            )
             points_str = " ".join(str(p) for p in key_points)
             embedding = await embed(f"{tldr} {points_str}", voyage_key)
         except Exception:

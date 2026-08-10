@@ -8,6 +8,101 @@ import { GenerateAudioButton } from "@/components/GenerateAudioButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+function contentLabel(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+}
+
+function renderInline(v: unknown): React.ReactNode {
+  if (typeof v === "string") return v
+  if (typeof v === "number" || typeof v === "boolean") return String(v)
+  if (Array.isArray(v))
+    return v.map((x, i) => (
+      <span key={i}>
+        {typeof x === "object" && x !== null ? JSON.stringify(x) : String(x)}
+        {i < v.length - 1 ? ", " : ""}
+      </span>
+    ))
+  if (isRecord(v))
+    return Object.entries(v)
+      .map(([k, x]) => `${contentLabel(k)}: ${String(x)}`)
+      .join("; ")
+  return String(v)
+}
+
+/** Renders arbitrary JSON produced by a custom analysis prompt. */
+function RenderContentValue({ value }: { value: unknown }) {
+  if (typeof value === "string") {
+    return <p className="text-[15px] leading-relaxed">{value}</p>
+  }
+  if (Array.isArray(value)) {
+    return (
+      <ol className="space-y-5 counter-reset-key">
+        {value.map((item, i) => (
+          <li key={i} className="grid grid-cols-[2.5rem_1fr] gap-3">
+            <span
+              aria-hidden="true"
+              className="font-serif text-xl text-muted-foreground pt-0.5"
+            >
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            {isRecord(item) ? (
+              <div className="space-y-1.5">
+                {Object.entries(item)
+                  .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                  .map(([k, v]) =>
+                    k === "take" && typeof v === "string" ? (
+                      <span
+                        key={k}
+                        className="inline-block text-[11px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 bg-foreground/10"
+                      >
+                        {v}
+                      </span>
+                    ) : (
+                      <p key={k} className="text-[15px] leading-relaxed">
+                        <span className="text-muted-foreground text-xs uppercase tracking-wide mr-1.5">
+                          {contentLabel(k)}
+                        </span>
+                        {renderInline(v)}
+                      </p>
+                    ),
+                  )}
+              </div>
+            ) : (
+              <p className="text-[15px] leading-relaxed">
+                {typeof item === "string" ? item : String(item)}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+    )
+  }
+  if (isRecord(value)) {
+    return (
+      <div className="space-y-1.5">
+        {Object.entries(value)
+          .filter(([, v]) => v !== null && v !== undefined && v !== "")
+          .map(([k, v]) => (
+            <p key={k} className="text-[15px] leading-relaxed">
+              <span className="text-muted-foreground text-xs uppercase tracking-wide mr-1.5">
+                {contentLabel(k)}
+              </span>
+              {renderInline(v)}
+            </p>
+          ))}
+      </div>
+    )
+  }
+  return null
+}
+
 export default function SummaryDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -73,7 +168,21 @@ export default function SummaryDetail() {
   if (!summary.data) return null
 
   const s = summary.data
-  const { tldr, key_points, quotes } = s.content
+  const content = s.content as Record<string, unknown>
+  const tldr = typeof content.tldr === "string" ? content.tldr : ""
+  // Custom analysis prompts may name the takeaways list differently
+  // (e.g. the fantasy style outputs "KEY_POINTS").
+  const key_points = Array.isArray(content.key_points)
+    ? (content.key_points as unknown[])
+    : Array.isArray(content.KEY_POINTS)
+      ? (content.KEY_POINTS as unknown[])
+      : []
+  const quotes = (Array.isArray(content.quotes)
+    ? content.quotes
+    : []) as { text: string; speaker: string | null }[]
+  const extraSections = Object.entries(content).filter(
+    ([k]) => !["tldr", "key_points", "KEY_POINTS", "quotes", "suggested_tags"].includes(k),
+  )
 
   const handleAddTag = () => {
     const name = addTagInput.trim().toLowerCase()
@@ -146,11 +255,23 @@ export default function SummaryDetail() {
                   >
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <p className="text-[15px] leading-relaxed">{pt}</p>
+                  <p className="text-[15px] leading-relaxed">
+                    {typeof pt === "string" ? pt : String(pt)}
+                  </p>
                 </li>
               ))}
             </ol>
           </section>
+
+          {/* Extra sections from custom analysis prompts (e.g. PLAYER_NOTES,
+              notable_disagreements) — rendered generically so any output
+              structure the prompt asks for is visible. */}
+          {extraSections.map(([key, value]) => (
+            <section key={key} className="space-y-4">
+              <p className="eyebrow">{contentLabel(key)}</p>
+              <RenderContentValue value={value} />
+            </section>
+          ))}
 
           {/* Quotes */}
           {quotes.length > 0 && (

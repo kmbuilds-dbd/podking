@@ -69,6 +69,65 @@ async def test_reader_renders_summary_html(seeded_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_reader_renders_custom_prompt_sections(
+    seeded_client: AsyncClient,
+) -> None:
+    """Custom analysis prompts may define their own output fields (e.g. the
+    fantasy style's PLAYER_NOTES / KEY_POINTS); the reader must render them
+    and treat the custom takeaway key as the takeaways list."""
+    from podking.db import get_sessionmaker
+    from podking.models import Episode, Summary, User
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        user = (await db.execute(select(User))).scalar_one()
+        user.feed_token = "custom-token"
+        ep = Episode(
+            user_id=user.id,
+            source_type="podcast",
+            source_url="https://example.com/ep",
+            external_id="custom-key-test",
+            title="Fantasy ep",
+        )
+        db.add(ep)
+        await db.flush()
+        s = Summary(
+            user_id=user.id,
+            episode_id=ep.id,
+            system_prompt="fantasy",
+            model="claude-sonnet-4-6",
+            content={
+                "tldr": "A fantasy football episode.",
+                "KEY_POINTS": ["Takeaway one.", "Takeaway two."],
+                "PLAYER_NOTES": [
+                    {
+                        "player": "Drake Maye",
+                        "team_position": "QB, NE",
+                        "take": "High",
+                        "summary": "Sharp in camp.",
+                        "speaker": "Host A",
+                    }
+                ],
+                "notable_disagreements": ["Hosts split on A.J. Brown."],
+                "quotes": [],
+                "suggested_tags": ["fantasy football"],
+            },
+        )
+        db.add(s)
+        await db.commit()
+        sid = str(s.id)
+
+    resp = await seeded_client.get(f"/reader/custom-token/{sid}.html")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Takeaway one." in body  # custom takeaway key rendered as list
+    assert "PLAYER NOTES" in body  # extra section heading
+    assert "Drake Maye" in body
+    assert "QB, NE" in body
+    assert "notable disagreements" in body
+
+
+@pytest.mark.asyncio
 async def test_reader_404_for_invalid_token(seeded_client: AsyncClient) -> None:
     _, summary_id = await _seed_summary_with_token(seeded_client)
     resp = await seeded_client.get(f"/reader/wrong-token/{summary_id}.html")
