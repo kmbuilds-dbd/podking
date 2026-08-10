@@ -65,7 +65,7 @@ function SummaryCard({
                 removeTag.mutate(t.name)
               }}
               disabled={removeTag.isPending}
-              className="opacity-40 hover:opacity-100 transition-opacity leading-none"
+              className="w-4 h-4 inline-grid place-items-center rounded-full bg-foreground/10 text-foreground/70 hover:bg-foreground/25 hover:text-foreground transition-colors leading-none"
               aria-label={`Remove tag ${t.name}`}
               title="Remove tag"
             >

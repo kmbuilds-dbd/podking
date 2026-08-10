@@ -199,7 +199,7 @@ export default function SummaryDetail() {
                     onClick={() =>
                       tagMutation.mutate({ add: [], remove: [t.name] })
                     }
-                    className="w-4 h-4 -mr-1 inline-grid place-items-center rounded-full text-foreground/40 hover:text-foreground hover:bg-foreground/10 transition-colors leading-none"
+                    className="w-4 h-4 -mr-1 inline-grid place-items-center rounded-full bg-foreground/10 text-foreground/70 hover:bg-foreground/25 hover:text-foreground transition-colors leading-none"
                     aria-label={`Remove ${t.name}`}
                     title="Remove tag"
                   >
