@@ -53,6 +53,62 @@ async def test_create_podcast_job(seeded_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_resummarize_job_reuses_summary_prompt(
+    seeded_client: AsyncClient,
+) -> None:
+    from podking.db import get_sessionmaker
+    from podking.models import Episode, Job, Summary, Transcript, User
+    from sqlalchemy import select
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        user = (await db.execute(select(User))).scalar_one()
+        episode = Episode(
+            user_id=user.id,
+            source_type="podcast",
+            source_url="https://example.com/custom-prompt-episode",
+            external_id="custom-prompt-episode",
+            title="Custom prompt episode",
+        )
+        db.add(episode)
+        await db.flush()
+        db.add(
+            Transcript(
+                episode_id=episode.id,
+                source="elevenlabs",
+                text="Transcript body",
+            )
+        )
+        db.add(
+            Summary(
+                user_id=user.id,
+                episode_id=episode.id,
+                system_prompt="Focus exclusively on product strategy.",
+                model="claude-sonnet-4-6",
+                content={
+                    "tldr": "Existing summary",
+                    "key_points": [],
+                    "quotes": [],
+                    "suggested_tags": [],
+                },
+            )
+        )
+        await db.commit()
+        episode_id = episode.id
+
+    resp = await seeded_client.post(
+        "/api/jobs/resummarize",
+        json={"episode_id": str(episode_id)},
+    )
+    assert resp.status_code == 201
+
+    async with sm() as db:
+        job = await db.get(Job, resp.json()["id"])
+        assert job is not None
+        assert job.analysis_prompt == "Focus exclusively on product strategy."
+
+
+@pytest.mark.asyncio
 async def test_create_job_rejects_unsupported_url(seeded_client: AsyncClient) -> None:
     resp = await seeded_client.post(
         "/api/jobs",

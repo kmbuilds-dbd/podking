@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from podking.deps import current_user, get_db
-from podking.models import Episode, Job, Transcript, User
+from podking.models import Episode, Job, Summary, Transcript, User
 from podking.prompt_styles import ensure_general_prompt_style
 from podking.schemas import (
     JobCreate,
@@ -95,12 +95,25 @@ async def create_resummarize_job(
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=400, detail="no transcript available for this episode")
 
-    general = await ensure_general_prompt_style(db, user.id)
+    summary = await db.scalar(
+        select(Summary)
+        .where(
+            Summary.episode_id == body.episode_id,
+            Summary.user_id == user.id,
+        )
+        .order_by(Summary.created_at.desc())
+        .limit(1)
+    )
+    if summary is not None:
+        analysis_prompt = summary.system_prompt
+    else:
+        general = await ensure_general_prompt_style(db, user.id)
+        analysis_prompt = general.prompt_text
     job = Job(
         user_id=user.id,
         kind="resummarize",
         episode_id=body.episode_id,
-        analysis_prompt=general.prompt_text,
+        analysis_prompt=analysis_prompt,
         status="queued",
     )
     db.add(job)
