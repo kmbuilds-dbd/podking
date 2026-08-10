@@ -21,6 +21,28 @@ async def test_create_youtube_job(seeded_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_job_snapshots_general_prompt(
+    seeded_client: AsyncClient,
+) -> None:
+    from podking.db import get_sessionmaker
+    from podking.models import Job
+    from sqlalchemy import select
+
+    resp = await seeded_client.post(
+        "/api/jobs",
+        json={"source_url": "https://www.youtube.com/watch?v=snapshot-test"},
+    )
+    assert resp.status_code == 201
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        job = (
+            await db.execute(select(Job).where(Job.id == resp.json()["id"]))
+        ).scalar_one()
+        assert job.analysis_prompt == "Summarize this."
+
+
+@pytest.mark.asyncio
 async def test_create_podcast_job(seeded_client: AsyncClient) -> None:
     resp = await seeded_client.post(
         "/api/jobs",

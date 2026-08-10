@@ -46,14 +46,14 @@ async def test_get_settings_returns_defaults(migrated_engine: AsyncEngine) -> No
         resp = await c.get("/api/settings")
     assert resp.status_code == 200
     data = resp.json()
-    assert data == {
-        "system_prompt": "",
-        "anthropic_key": {"set": False},
-        "elevenlabs_key": {"set": False},
-        "voyage_key": {"set": False},
-        "tts_voice_a_id": None,
-        "tts_voice_b_id": None,
-    }
+    assert data["system_prompt"] == ""
+    assert data["anthropic_key"] == {"set": False}
+    assert data["elevenlabs_key"] == {"set": False}
+    assert data["voyage_key"] == {"set": False}
+    assert data["tts_voice_a_id"] is None
+    assert data["tts_voice_b_id"] is None
+    assert len(data["prompt_styles"]) == 1
+    assert data["prompt_styles"][0]["label"] == "general"
 
 
 @pytest.mark.asyncio

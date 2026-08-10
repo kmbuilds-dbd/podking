@@ -54,6 +54,9 @@ class User(Base):
     subscriptions: Mapped[list[Subscription]] = relationship(
         "Subscription", back_populates="user"
     )
+    prompt_styles: Mapped[list[PromptStyle]] = relationship(
+        "PromptStyle", back_populates="user", cascade="all, delete-orphan"
+    )
     audio_episodes: Mapped[list[AudioEpisode]] = relationship(
         "AudioEpisode", back_populates="user"
     )
@@ -156,6 +159,7 @@ class Job(Base):
         ForeignKey("summaries.id", ondelete="SET NULL"),
         nullable=True,
     )
+    analysis_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
     progress_pct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     progress_message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -325,6 +329,33 @@ class SummaryTag(Base):
     tag: Mapped[Tag] = relationship("Tag", back_populates="summary_tags")
 
 
+class PromptStyle(Base):
+    __tablename__ = "prompt_styles"
+    __table_args__ = (
+        UniqueConstraint("user_id", "label", name="uq_prompt_style_user_label"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="prompt_styles")
+    subscriptions: Mapped[list[Subscription]] = relationship(
+        "Subscription", back_populates="prompt_style"
+    )
+
+
 class Subscription(Base):
     __tablename__ = "subscriptions"
     __table_args__ = (
@@ -340,6 +371,9 @@ class Subscription(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    prompt_style_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("prompt_styles.id"), nullable=False
+    )
     kind: Mapped[str] = mapped_column(String, nullable=False)
     feed_url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -352,3 +386,6 @@ class Subscription(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="subscriptions")
+    prompt_style: Mapped[PromptStyle] = relationship(
+        "PromptStyle", back_populates="subscriptions"
+    )

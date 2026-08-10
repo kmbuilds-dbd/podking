@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api, getFeedUrl, regenerateFeedUrl } from "@/api"
+import {
+  api,
+  createPromptStyle,
+  deletePromptStyle,
+  getFeedUrl,
+  patchPromptStyle,
+  regenerateFeedUrl,
+  type PromptStyle,
+} from "@/api"
 import { TopNav } from "@/components/TopNav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,11 +18,66 @@ import { Textarea } from "@/components/ui/textarea"
 
 type SettingsResp = {
   system_prompt: string
+  prompt_styles: PromptStyle[]
   anthropic_key: { set: boolean }
   elevenlabs_key: { set: boolean }
   voyage_key: { set: boolean }
   tts_voice_a_id: string | null
   tts_voice_b_id: string | null
+}
+
+function PromptStyleEditor({
+  style,
+  onSave,
+  onDelete,
+  isSaving,
+  isDeleting,
+}: {
+  style: PromptStyle
+  onSave: (id: string, label: string, prompt_text: string) => void
+  onDelete: (id: string) => void
+  isSaving: boolean
+  isDeleting: boolean
+}) {
+  const [label, setLabel] = useState(style.label)
+  const [promptText, setPromptText] = useState(style.prompt_text)
+
+  return (
+    <div className="space-y-3 rounded-md border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={`style-label-${style.id}`}>Style label</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-destructive"
+          disabled={isDeleting}
+          onClick={() => onDelete(style.id)}
+        >
+          Delete
+        </Button>
+      </div>
+      <Input
+        id={`style-label-${style.id}`}
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
+      <Textarea
+        rows={5}
+        value={promptText}
+        onChange={(e) => setPromptText(e.target.value)}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isSaving || !label.trim() || !promptText.trim()}
+        onClick={() => onSave(style.id, label, promptText)}
+      >
+        {isSaving ? "Saving…" : "Save style"}
+      </Button>
+    </div>
+  )
 }
 
 export default function Settings() {
@@ -31,6 +94,8 @@ export default function Settings() {
   const [voiceA, setVoiceA] = useState("")
   const [voiceB, setVoiceB] = useState("")
   const [tokenCopied, setTokenCopied] = useState(false)
+  const [newStyleLabel, setNewStyleLabel] = useState("")
+  const [newStylePrompt, setNewStylePrompt] = useState("")
 
   useEffect(() => {
     if (settings.data) {
@@ -63,6 +128,26 @@ export default function Settings() {
     },
   })
 
+  const createStyle = useMutation({
+    mutationFn: () => createPromptStyle(newStyleLabel, newStylePrompt),
+    onSuccess: () => {
+      setNewStyleLabel("")
+      setNewStylePrompt("")
+      qc.invalidateQueries({ queryKey: ["settings"] })
+    },
+  })
+
+  const updateStyle = useMutation({
+    mutationFn: ({ id, label, prompt_text }: { id: string; label: string; prompt_text: string }) =>
+      patchPromptStyle(id, { label, prompt_text }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  })
+
+  const removeStyle = useMutation({
+    mutationFn: deletePromptStyle,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  })
+
   const keyLabel = (set: boolean, name: string) =>
     set ? `•••• ${name} set` : `${name} not set`
 
@@ -93,8 +178,8 @@ export default function Settings() {
           </Link>
         </div>
 
-      <div className="space-y-2">
-        <Label>Analysis style guidance</Label>
+      <div className="space-y-3">
+        <Label>Analysis style guidance · general</Label>
         <p className="text-xs text-muted-foreground">
           Shape <em>how</em> Claude analyzes the transcript — depth, focus, tone, what to emphasize.
           Output structure is fixed: <code>tldr</code>, <code>key_points</code>, <code>quotes</code>,
@@ -107,6 +192,61 @@ export default function Settings() {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Focus on actionable insights. Surface specific numbers, names, and arguments. Distinguish strong claims from speculation. Prefer dense, substantive bullets over filler."
         />
+      </div>
+
+      <div className="space-y-4 border-t pt-6">
+        <div>
+          <Label>Custom styles</Label>
+          <p className="text-xs text-muted-foreground mt-1">
+            Create private analysis styles and assign them to subscriptions from their detail page.
+          </p>
+        </div>
+        {settings.data.prompt_styles
+          .filter((style) => style.label !== "general")
+          .map((style) => (
+            <PromptStyleEditor
+              key={style.id}
+              style={style}
+              onSave={(id, label, prompt_text) =>
+                updateStyle.mutate({ id, label, prompt_text })
+              }
+              onDelete={(id) => {
+                if (confirm("Delete this style? Assigned subscriptions will use general.")) {
+                  removeStyle.mutate(id)
+                }
+              }}
+              isSaving={updateStyle.isPending}
+              isDeleting={removeStyle.isPending}
+            />
+          ))}
+        <div className="space-y-3 rounded-md border border-dashed p-4">
+          <Label>Add a style</Label>
+          <Input
+            placeholder="e.g. Executive brief"
+            value={newStyleLabel}
+            onChange={(e) => setNewStyleLabel(e.target.value)}
+          />
+          <Textarea
+            rows={5}
+            placeholder="Focus on decisions, risks, and implications for leaders."
+            value={newStylePrompt}
+            onChange={(e) => setNewStylePrompt(e.target.value)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={
+              createStyle.isPending || !newStyleLabel.trim() || !newStylePrompt.trim()
+            }
+            onClick={() => createStyle.mutate()}
+          >
+            {createStyle.isPending ? "Adding…" : "Add style"}
+          </Button>
+          {createStyle.isError && (
+            <p className="text-sm text-red-600">Error: {String(createStyle.error)}</p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3 border-t pt-6">

@@ -26,6 +26,7 @@ from podking.models import (
     User,
     UserSettings,
 )
+from podking.prompt_styles import ensure_general_prompt_style
 from podking.pubsub import publish
 
 log = logging.getLogger(__name__)
@@ -181,16 +182,22 @@ async def _summarize_and_embed(
     user_id: uuid.UUID,
     episode_id: uuid.UUID,
     transcript_text: str,
+    analysis_prompt: str | None = None,
 ) -> None:
     settings = await _get_settings(user_id)
     anthropic_key = _require_key(settings.anthropic_api_key_encrypted, "Anthropic")
+    if analysis_prompt is None:
+        sm = get_sessionmaker()
+        async with sm() as db:
+            general = await ensure_general_prompt_style(db, user_id)
+            analysis_prompt = general.prompt_text
 
     await _update_progress(job_id, 80, "Summarizing…")
     await _update_job_status(job_id, "summarizing")
 
     from podking.worker.claude_client import summarize
     content: dict[str, object] = await summarize(
-        transcript_text, settings.system_prompt, anthropic_key
+        transcript_text, analysis_prompt, anthropic_key
     )
 
     await _update_progress(job_id, 95, "Embedding…")
@@ -214,7 +221,7 @@ async def _summarize_and_embed(
         summary = Summary(
             episode_id=episode_id,
             user_id=user_id,
-            system_prompt=settings.system_prompt,
+            system_prompt=analysis_prompt,
             model="claude-sonnet-4-6",
             content=content,
             embedding=embedding,
@@ -305,7 +312,9 @@ async def _run_youtube_job(job: Job) -> None:
         transcript_source = "elevenlabs"
 
     await _upsert_transcript(episode_id, transcript_source, transcript_text)
-    await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
+    await _summarize_and_embed(
+        job.id, job.user_id, episode_id, transcript_text, job.analysis_prompt
+    )
     await _complete_job(job.id, episode_id)
 
 
@@ -388,7 +397,9 @@ async def _run_podcast_job(job: Job) -> None:
     transcript_text = str(result["text"])
 
     await _upsert_transcript(episode_id, "elevenlabs", transcript_text)
-    await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
+    await _summarize_and_embed(
+        job.id, job.user_id, episode_id, transcript_text, job.analysis_prompt
+    )
     await _complete_job(job.id, episode_id)
 
 
@@ -443,7 +454,9 @@ async def _run_feed_episode_job(job: Job) -> None:
     transcript_text = str(result["text"])
 
     await _upsert_transcript(episode_id, "elevenlabs", transcript_text)
-    await _summarize_and_embed(job.id, job.user_id, episode_id, transcript_text)
+    await _summarize_and_embed(
+        job.id, job.user_id, episode_id, transcript_text, job.analysis_prompt
+    )
     await _complete_job(job.id, episode_id)
 
 
@@ -463,7 +476,9 @@ async def _run_resummarize_job(job: Job) -> None:
             raise RuntimeError("No transcript available for this episode")
         transcript_text = transcript.text
 
-    await _summarize_and_embed(job.id, job.user_id, job.episode_id, transcript_text)
+    await _summarize_and_embed(
+        job.id, job.user_id, job.episode_id, transcript_text, job.analysis_prompt
+    )
     await _complete_job(job.id, job.episode_id)
 
 

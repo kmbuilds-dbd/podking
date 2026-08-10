@@ -5,6 +5,27 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+
+class PromptStyleResponse(BaseModel):
+    id: uuid.UUID
+    label: str
+    prompt_text: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PromptStyleCreate(BaseModel):
+    label: str
+    prompt_text: str
+
+
+class PromptStylePatch(BaseModel):
+    label: str | None = None
+    prompt_text: str | None = None
+
+
 # ── settings ──────────────────────────────────────────────────────────────────
 
 class KeyStatus(BaseModel):
@@ -13,6 +34,7 @@ class KeyStatus(BaseModel):
 
 class SettingsResponse(BaseModel):
     system_prompt: str
+    prompt_styles: list[PromptStyleResponse] = []
     anthropic_key: KeyStatus
     elevenlabs_key: KeyStatus
     voyage_key: KeyStatus
@@ -149,12 +171,18 @@ class SubscriptionCreate(BaseModel):
     url: str
 
 
+class SubscriptionPromptStylePatch(BaseModel):
+    prompt_style_id: uuid.UUID
+
+
 class SubscriptionResponse(BaseModel):
     id: uuid.UUID
     kind: str
     feed_url: str
     title: str | None
     image_url: str | None
+    prompt_style_id: uuid.UUID
+    prompt_style: PromptStyleResponse
     last_checked_at: datetime | None
     created_at: datetime
 

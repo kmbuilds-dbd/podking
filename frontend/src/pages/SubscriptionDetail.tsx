@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { TopNav } from "@/components/TopNav"
 import { Button } from "@/components/ui/button"
 import {
+  listPromptStyles,
   listSubscriptionEpisodes,
+  patchSubscriptionPromptStyle,
   processSubscriptionEpisode,
 } from "@/api"
 import type { FeedEpisode } from "@/api"
@@ -88,6 +90,20 @@ export default function SubscriptionDetail() {
     enabled: !!id,
   })
 
+  const styles = useQuery({
+    queryKey: ["prompt-styles"],
+    queryFn: listPromptStyles,
+  })
+
+  const saveStyle = useMutation({
+    mutationFn: (prompt_style_id: string) =>
+      patchSubscriptionPromptStyle(id!, prompt_style_id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["subscription-episodes", id] })
+      qc.invalidateQueries({ queryKey: ["subscriptions"] })
+    },
+  })
+
   const summarize = useMutation({
     mutationFn: (external_id: string) =>
       processSubscriptionEpisode(id!, external_id),
@@ -141,6 +157,21 @@ export default function SubscriptionDetail() {
                 <h1 className="font-serif text-3xl tracking-tightest font-semibold leading-[1.1]">
                   {data.data.subscription.title ?? "(untitled feed)"}
                 </h1>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+                  <span>Analysis style</span>
+                  <select
+                    className="rounded border border-input bg-background px-2 py-1 text-foreground"
+                    value={data.data.subscription.prompt_style_id}
+                    disabled={styles.isLoading || saveStyle.isPending}
+                    onChange={(e) => saveStyle.mutate(e.target.value)}
+                  >
+                    {styles.data?.map((style) => (
+                      <option key={style.id} value={style.id}>
+                        {style.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             </div>
 

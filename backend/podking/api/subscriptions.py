@@ -9,13 +9,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from podking.config import get_settings
 from podking.deps import current_user, get_db
-from podking.models import Episode, Job, Subscription, User
+from podking.models import Episode, Job, PromptStyle, Subscription, User
+from podking.prompt_styles import ensure_general_prompt_style
 from podking.schemas import (
     JobResponse,
     SubscriptionCreate,
+    SubscriptionPromptStylePatch,
     SubscriptionResponse,
 )
 from podking.worker import feed as feed_helpers
@@ -107,6 +110,7 @@ async def list_subscriptions(
     result = await db.execute(
         select(Subscription)
         .where(Subscription.user_id == user.id)
+        .options(selectinload(Subscription.prompt_style))
         .order_by(Subscription.created_at.desc())
     )
     return [SubscriptionResponse.model_validate(s) for s in result.scalars()]
@@ -143,17 +147,51 @@ async def create_subscription(
     except Exception:  # noqa: BLE001
         pass
 
+    general = await ensure_general_prompt_style(db, user.id)
     sub = Subscription(
         user_id=user.id,
         kind=kind,
         feed_url=feed_url,
         title=title,
         image_url=image_url,
+        prompt_style_id=general.id,
     )
     db.add(sub)
     await db.commit()
-    await db.refresh(sub)
-    return SubscriptionResponse.model_validate(sub)
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    return SubscriptionResponse.model_validate(result.scalar_one())
+
+
+@router.patch("/subscriptions/{sub_id}", response_model=SubscriptionResponse)
+async def patch_subscription(
+    sub_id: uuid.UUID,
+    body: SubscriptionPromptStylePatch,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> SubscriptionResponse:
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub_id, Subscription.user_id == user.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    sub = result.scalar_one_or_none()
+    if sub is None:
+        raise HTTPException(status_code=404, detail="subscription not found")
+    style = await db.get(PromptStyle, body.prompt_style_id)
+    if style is None or style.user_id != user.id:
+        raise HTTPException(status_code=404, detail="prompt style not found")
+    sub.prompt_style_id = style.id
+    await db.commit()
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    return SubscriptionResponse.model_validate(result.scalar_one())
 
 
 @router.delete("/subscriptions/{sub_id}", status_code=204)
@@ -162,8 +200,13 @@ async def delete_subscription(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(current_user),
 ) -> None:
-    sub = await db.get(Subscription, sub_id)
-    if sub is None or sub.user_id != user.id:
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub_id, Subscription.user_id == user.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    sub = result.scalar_one_or_none()
+    if sub is None:
         raise HTTPException(status_code=404, detail="subscription not found")
     await db.delete(sub)
     await db.commit()
@@ -240,8 +283,13 @@ async def list_subscription_episodes(
     """Return recent episodes for a subscription's feed plus subscription
     metadata. The `processed` flag tells the UI whether we already have
     a summary for that episode."""
-    sub = await db.get(Subscription, sub_id)
-    if sub is None or sub.user_id != user.id:
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub_id, Subscription.user_id == user.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    sub = result.scalar_one_or_none()
+    if sub is None:
         raise HTTPException(status_code=404, detail="subscription not found")
 
     episodes = await asyncio.to_thread(
@@ -282,8 +330,13 @@ async def process_subscription_episode(
     summarization job for it. For YouTube channels this is a normal
     `youtube` job with the watch URL; for podcasts a `feed_episode` job
     that uses the enclosure URL we just resolved."""
-    sub = await db.get(Subscription, sub_id)
-    if sub is None or sub.user_id != user.id:
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.id == sub_id, Subscription.user_id == user.id)
+        .options(selectinload(Subscription.prompt_style))
+    )
+    sub = result.scalar_one_or_none()
+    if sub is None:
         raise HTTPException(status_code=404, detail="subscription not found")
 
     episodes = await asyncio.to_thread(
@@ -301,6 +354,7 @@ async def process_subscription_episode(
             user_id=user.id,
             kind="youtube",
             source_url=str(match["source_url"]),
+            analysis_prompt=sub.prompt_style.prompt_text,
             status="queued",
         )
     else:
@@ -348,6 +402,7 @@ async def process_subscription_episode(
             kind="feed_episode",
             source_url=str(match.get("source_url") or match["audio_url"]),
             episode_id=episode.id,
+            analysis_prompt=sub.prompt_style.prompt_text,
             status="queued",
         )
 

@@ -101,8 +101,18 @@ export interface Subscription {
   feed_url: string
   title: string | null
   image_url: string | null
+  prompt_style_id: string
+  prompt_style: PromptStyle
   last_checked_at: string | null
   created_at: string
+}
+
+export interface PromptStyle {
+  id: string
+  label: string
+  prompt_text: string
+  created_at: string
+  updated_at: string
 }
 
 export interface TagInfo {
@@ -179,6 +189,34 @@ export const createSubscription = (url: string) =>
 
 export const deleteSubscription = (id: string) =>
   api<void>(`/api/subscriptions/${id}`, { method: "DELETE" })
+
+export const patchSubscriptionPromptStyle = (id: string, prompt_style_id: string) =>
+  api<Subscription>(`/api/subscriptions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ prompt_style_id }),
+  })
+
+// ── prompt styles ────────────────────────────────────────────────────────
+
+export const listPromptStyles = () => api<PromptStyle[]>("/api/prompt-styles")
+
+export const createPromptStyle = (label: string, prompt_text: string) =>
+  api<PromptStyle>("/api/prompt-styles", {
+    method: "POST",
+    body: JSON.stringify({ label, prompt_text }),
+  })
+
+export const patchPromptStyle = (
+  id: string,
+  body: { label?: string; prompt_text?: string },
+) =>
+  api<PromptStyle>(`/api/prompt-styles/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  })
+
+export const deletePromptStyle = (id: string) =>
+  api<void>(`/api/prompt-styles/${id}`, { method: "DELETE" })
 
 export interface PodcastSearchResult {
   id: string

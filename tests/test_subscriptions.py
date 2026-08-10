@@ -176,6 +176,16 @@ async def test_process_subscription_episode_creates_feed_episode_job(
         json={"url": "https://feeds.example.com/process-test.xml"},
     )
     sub_id = create.json()["id"]
+    style = await seeded_client.post(
+        "/api/prompt-styles",
+        json={"label": "show notes", "prompt_text": "Original show notes guidance"},
+    )
+    assert style.status_code == 201
+    assigned = await seeded_client.patch(
+        f"/api/subscriptions/{sub_id}",
+        json={"prompt_style_id": style.json()["id"]},
+    )
+    assert assigned.status_code == 200
 
     resp = await seeded_client.post(
         f"/api/subscriptions/{sub_id}/episodes/process",
@@ -201,6 +211,18 @@ async def test_process_subscription_episode_creates_feed_episode_job(
         ).scalar_one()
         assert j.kind == "feed_episode"
         assert j.status == "queued"
+        assert j.analysis_prompt == "Original show notes guidance"
+
+    changed = await seeded_client.patch(
+        f"/api/prompt-styles/{style.json()['id']}",
+        json={"prompt_text": "Changed after queueing"},
+    )
+    assert changed.status_code == 200
+    async with sm() as db:
+        j = (
+            await db.execute(select(Job).where(Job.episode_id == ep.id))
+        ).scalar_one()
+        assert j.analysis_prompt == "Original show notes guidance"
 
 
 @pytest.mark.asyncio

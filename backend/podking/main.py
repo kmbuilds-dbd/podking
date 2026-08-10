@@ -12,7 +12,19 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from podking import auth
-from podking.api import audio as audio_api, events, health, jobs, me, reader, search, subscriptions, summaries, tags
+from podking.api import audio as audio_api
+from podking.api import (
+    events,
+    health,
+    jobs,
+    me,
+    prompt_styles,
+    reader,
+    search,
+    subscriptions,
+    summaries,
+    tags,
+)
 from podking.api import settings as settings_api
 from podking.config import get_settings
 from podking.db import get_sessionmaker
@@ -64,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(me.router)
     app.include_router(settings_api.router)
+    app.include_router(prompt_styles.router)
     app.include_router(jobs.router)
     app.include_router(events.router)
     app.include_router(summaries.router)

@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from podking.deps import current_user, get_db
 from podking.models import Episode, Job, Transcript, User
+from podking.prompt_styles import ensure_general_prompt_style
 from podking.schemas import (
     JobCreate,
     JobEpisodeMini,
@@ -64,10 +65,12 @@ async def create_job(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    general = await ensure_general_prompt_style(db, user.id)
     job = Job(
         user_id=user.id,
         kind=kind,
         source_url=body.source_url,
+        analysis_prompt=general.prompt_text,
         status="queued",
     )
     db.add(job)
@@ -92,10 +95,12 @@ async def create_resummarize_job(
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=400, detail="no transcript available for this episode")
 
+    general = await ensure_general_prompt_style(db, user.id)
     job = Job(
         user_id=user.id,
         kind="resummarize",
         episode_id=body.episode_id,
+        analysis_prompt=general.prompt_text,
         status="queued",
     )
     db.add(job)
