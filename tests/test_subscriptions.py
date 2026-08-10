@@ -186,6 +186,11 @@ async def test_process_subscription_episode_creates_feed_episode_job(
         json={"prompt_style_id": style.json()["id"]},
     )
     assert assigned.status_code == 200
+    # The PATCH response must carry the newly-assigned style, not the
+    # pre-assignment ("general") one — a stale relationship here used to
+    # leak the old prompt back to the UI cache.
+    assert assigned.json()["prompt_style"]["id"] == style.json()["id"]
+    assert assigned.json()["prompt_style"]["prompt_text"] == "Original show notes guidance"
 
     resp = await seeded_client.post(
         f"/api/subscriptions/{sub_id}/episodes/process",
@@ -212,6 +217,10 @@ async def test_process_subscription_episode_creates_feed_episode_job(
         assert j.kind == "feed_episode"
         assert j.status == "queued"
         assert j.analysis_prompt == "Original show notes guidance"
+        # Episode and job must be linked to the subscription so re-summarize
+        # can resolve the subscription's CURRENT style later.
+        assert str(ep.subscription_id) == sub_id
+        assert str(j.subscription_id) == sub_id
 
     changed = await seeded_client.patch(
         f"/api/prompt-styles/{style.json()['id']}",

@@ -280,6 +280,8 @@ async def _run_youtube_job(job: Job) -> None:
         thumbnail_url=str(meta.get("thumbnail") or ""),
     )
     await _link_job_episode(job.id, episode_id)
+    if job.subscription_id is not None:
+        await _link_episode_subscription(episode_id, job.subscription_id)
 
     # Check for captions
     await _update_progress(job.id, 10, "Checking for captions…")
@@ -751,6 +753,19 @@ async def _link_job_episode(job_id: uuid.UUID, episode_id: uuid.UUID) -> None:
         job = await db.get(Job, job_id)
         if job is not None and job.episode_id is None:
             job.episode_id = episode_id
+            await db.commit()
+
+
+async def _link_episode_subscription(
+    episode_id: uuid.UUID, subscription_id: uuid.UUID
+) -> None:
+    """Record which subscription an episode was queued from, so re-summarize
+    can resolve the subscription's current analysis style."""
+    sm = get_sessionmaker()
+    async with sm() as db:
+        episode = await db.get(Episode, episode_id)
+        if episode is not None:
+            episode.subscription_id = subscription_id
             await db.commit()
 
 

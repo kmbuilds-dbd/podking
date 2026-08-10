@@ -185,6 +185,7 @@ async def patch_subscription(
     if style is None or style.user_id != user.id:
         raise HTTPException(status_code=404, detail="prompt style not found")
     sub.prompt_style_id = style.id
+    sub.prompt_style = style
     await db.commit()
     result = await db.execute(
         select(Subscription)
@@ -355,6 +356,7 @@ async def process_subscription_episode(
             kind="youtube",
             source_url=str(match["source_url"]),
             analysis_prompt=sub.prompt_style.prompt_text,
+            subscription_id=sub.id,
             status="queued",
         )
     else:
@@ -391,11 +393,13 @@ async def process_subscription_episode(
                 thumbnail_url=str(ep_thumb) if isinstance(ep_thumb, str) else None,
                 audio_url=str(match["audio_url"]),
                 published_at=published_at,
+                subscription_id=sub.id,
             )
             db.add(episode)
             await db.flush()
         else:
             episode.audio_url = str(match["audio_url"])
+            episode.subscription_id = sub.id
 
         job = Job(
             user_id=user.id,
@@ -403,6 +407,7 @@ async def process_subscription_episode(
             source_url=str(match.get("source_url") or match["audio_url"]),
             episode_id=episode.id,
             analysis_prompt=sub.prompt_style.prompt_text,
+            subscription_id=sub.id,
             status="queued",
         )
 

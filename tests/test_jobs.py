@@ -109,6 +109,110 @@ async def test_resummarize_job_reuses_summary_prompt(
 
 
 @pytest.mark.asyncio
+async def test_resummarize_uses_subscription_current_style(
+    seeded_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Re-summarizing an episode that came from a subscription must use the
+    subscription's CURRENT analysis style, not the stale prompt snapshot
+    stored on the previous summary. Regression: style A → summarize →
+    switch subscription to style B → re-summarize used A forever."""
+    from podking.db import get_sessionmaker
+    from podking.models import Episode, Job
+    from sqlalchemy import select
+
+    def _stub_feed_helpers(episodes: list[dict]) -> None:
+        from podking.worker import feed as feed_helpers
+
+        def fake_parse(feed_url: str, kind: str, limit: int) -> list[dict]:  # noqa: ARG001
+            return episodes
+
+        def fake_meta(feed_url: str) -> dict:  # noqa: ARG001
+            return {"title": None, "image_url": None}
+
+        monkeypatch.setattr(feed_helpers, "parse_feed_episodes", fake_parse)
+        monkeypatch.setattr(feed_helpers, "fetch_feed_metadata", fake_meta)
+
+    _stub_feed_helpers(
+        [
+            {
+                "external_id": "resummarize-current-style",
+                "title": "Episode",
+                "author": "Show",
+                "published_at_ms": None,
+                "duration_seconds": 900,
+                "thumbnail": None,
+                "source_url": "https://example.com/resummarize-current-style",
+                "audio_url": "https://cdn.example.com/resummarize-current-style.mp3",
+                "description": "x",
+            }
+        ]
+    )
+
+    sub = await seeded_client.post(
+        "/api/subscriptions",
+        json={"url": "https://feeds.example.com/current-style.xml"},
+    )
+    sub_id = sub.json()["id"]
+
+    style_a = await seeded_client.post(
+        "/api/prompt-styles",
+        json={"label": "style-a", "prompt_text": "PROMPT A"},
+    )
+    await seeded_client.patch(
+        f"/api/subscriptions/{sub_id}",
+        json={"prompt_style_id": style_a.json()["id"]},
+    )
+
+    # First summary queued with style A.
+    resp = await seeded_client.post(
+        f"/api/subscriptions/{sub_id}/episodes/process",
+        json={"external_id": "resummarize-current-style"},
+    )
+    assert resp.status_code == 201
+
+    # Switch the subscription to style B, then re-summarize.
+    style_b = await seeded_client.post(
+        "/api/prompt-styles",
+        json={"label": "style-b", "prompt_text": "PROMPT B"},
+    )
+    await seeded_client.patch(
+        f"/api/subscriptions/{sub_id}",
+        json={"prompt_style_id": style_b.json()["id"]},
+    )
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        from podking.models import Transcript
+
+        episode = (
+            await db.execute(
+                select(Episode).where(Episode.external_id == "resummarize-current-style")
+            )
+        ).scalar_one()
+        episode_id = episode.id
+        assert str(episode.subscription_id) == sub_id
+        transcript_exists = (
+            await db.execute(
+                select(Transcript).where(Transcript.episode_id == episode_id)
+            )
+        ).scalar_one_or_none()
+        if transcript_exists is None:
+            db.add(Transcript(episode_id=episode_id, source="elevenlabs", text="Transcript body"))
+            await db.commit()
+
+    resp = await seeded_client.post(
+        "/api/jobs/resummarize",
+        json={"episode_id": str(episode_id)},
+    )
+    assert resp.status_code == 201
+
+    async with sm() as db:
+        job = await db.get(Job, resp.json()["id"])
+        assert job is not None
+        assert job.analysis_prompt == "PROMPT B"
+
+
+@pytest.mark.asyncio
 async def test_create_job_rejects_unsupported_url(seeded_client: AsyncClient) -> None:
     resp = await seeded_client.post(
         "/api/jobs",

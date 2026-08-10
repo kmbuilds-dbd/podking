@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from podking.deps import current_user, get_db
-from podking.models import Episode, Job, Summary, Transcript, User
+from podking.models import Episode, Job, PromptStyle, Subscription, Summary, Transcript, User
 from podking.prompt_styles import ensure_general_prompt_style
 from podking.schemas import (
     JobCreate,
@@ -95,20 +95,33 @@ async def create_resummarize_job(
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=400, detail="no transcript available for this episode")
 
-    summary = await db.scalar(
-        select(Summary)
-        .where(
-            Summary.episode_id == body.episode_id,
-            Summary.user_id == user.id,
+    # If the episode came from a subscription, use the subscription's CURRENT
+    # analysis style so style edits/assignments apply on re-summarize. Fall
+    # back to the previous summary's prompt (or general) for standalone
+    # episodes that have no subscription context.
+    analysis_prompt: str | None = None
+    if episode.subscription_id is not None:
+        subscription = await db.get(Subscription, episode.subscription_id)
+        if subscription is not None and subscription.user_id == user.id:
+            style = await db.get(PromptStyle, subscription.prompt_style_id)
+            if style is not None:
+                analysis_prompt = style.prompt_text
+
+    if analysis_prompt is None:
+        summary = await db.scalar(
+            select(Summary)
+            .where(
+                Summary.episode_id == body.episode_id,
+                Summary.user_id == user.id,
+            )
+            .order_by(Summary.created_at.desc())
+            .limit(1)
         )
-        .order_by(Summary.created_at.desc())
-        .limit(1)
-    )
-    if summary is not None:
-        analysis_prompt = summary.system_prompt
-    else:
-        general = await ensure_general_prompt_style(db, user.id)
-        analysis_prompt = general.prompt_text
+        if summary is not None:
+            analysis_prompt = summary.system_prompt
+        else:
+            general = await ensure_general_prompt_style(db, user.id)
+            analysis_prompt = general.prompt_text
     job = Job(
         user_id=user.id,
         kind="resummarize",
