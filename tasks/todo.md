@@ -36,3 +36,19 @@
 
 - Red/green regression: expected custom guidance, initially received `Summarize this.`, then passed after the fix.
 - Verification: `81 passed, 1 warning`; Ruff and diff checks passed.
+
+## Railway migration healthcheck incident
+
+- [x] Inspect the latest failed deployment and migration state.
+- [x] Trace the migration lock to long-lived SSE database transactions.
+- [x] Add a regression test proving the SSE route releases its transaction.
+- [x] Run focused and full verification.
+- [ ] Push the root-cause fix to `origin/main` and verify Railway health.
+
+### Review
+
+- Deployment `09aac3ac-96c6-4b31-ba81-f76d8cd8a145` blocked while running migration `0010`.
+- Production showed `/events/{job_id}` sessions idle in transaction and blocking `ALTER TABLE` locks.
+- The route now snapshots the initial event and rolls back before opening the long-lived stream.
+- Verification: regression test passed; full backend suite `83 passed, 1 warning`; changed Python files are Ruff-clean.
+- Repository-wide Ruff still reports 11 unrelated, pre-existing findings in audio worker tests/files.

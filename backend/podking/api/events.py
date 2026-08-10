@@ -27,17 +27,22 @@ async def job_events(
     if job is None or job.user_id != user.id:
         raise HTTPException(status_code=404, detail="job not found")
 
+    # Streaming responses keep request dependencies alive until the client
+    # disconnects. Snapshot the state and release the read transaction before
+    # opening the long-lived SSE stream so migrations are not blocked.
+    current = {
+        "status": job.status,
+        "progress_pct": job.progress_pct,
+        "progress_message": job.progress_message,
+        "error": job.error,
+    }
+    await db.rollback()
+
     async def generate() -> AsyncIterator[str]:
         # Send current state first (handles reconnects)
-        current = {
-            "status": job.status,
-            "progress_pct": job.progress_pct,
-            "progress_message": job.progress_message,
-            "error": job.error,
-        }
         yield f"data: {json.dumps(current)}\n\n"
 
-        if job.status in TERMINAL:
+        if current["status"] in TERMINAL:
             return
 
         q = subscribe(job_id)
