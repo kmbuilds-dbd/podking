@@ -24,6 +24,7 @@ from podking.api import (
     subscriptions,
     summaries,
     tags,
+    transcriptions,
 )
 from podking.api import settings as settings_api
 from podking.config import get_settings
@@ -84,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(search.router)
     app.include_router(subscriptions.router)
     app.include_router(audio_api.router)
+    app.include_router(transcriptions.router)
     app.include_router(reader.router)
 
     if settings.test_mode:

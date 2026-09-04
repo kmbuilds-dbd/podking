@@ -12,7 +12,11 @@ class ElevenLabsError(RuntimeError):
     pass
 
 
-async def transcribe(audio_path: Path, api_key: str) -> dict[str, object]:
+async def transcribe(
+    audio_path: Path,
+    api_key: str,
+    content_type: str = "audio/mpeg",
+) -> dict[str, object]:
     """Return {'text': str, 'segments': list | None}."""
     for attempt in range(3):
         try:
@@ -21,7 +25,7 @@ async def transcribe(audio_path: Path, api_key: str) -> dict[str, object]:
                     resp = await client.post(
                         SCRIBE_URL,
                         headers={"xi-api-key": api_key},
-                        files={"file": (audio_path.name, f, "audio/mpeg")},
+                        files={"file": (audio_path.name, f, content_type)},
                         data={"model_id": "scribe_v1"},
                     )
             if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:

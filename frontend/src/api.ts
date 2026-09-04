@@ -1,9 +1,10 @@
 export async function api<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData
   const resp = await fetch(path, {
     ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(init?.headers || {}),
     },
   })
@@ -42,6 +43,7 @@ export interface Job {
   kind: string
   source_url: string | null
   episode_id: string | null
+  transcription_id: string | null
   episode: JobEpisodeMini | null
   status: string
   progress_pct: number
@@ -167,6 +169,36 @@ export const getTranscript = (episode_id: string) =>
   api<{ id: string; source: string; text: string; segments: unknown; created_at: string }>(
     `/api/episodes/${episode_id}/transcript`
   )
+
+export interface Transcription {
+  id: string
+  job_id: string
+  original_filename: string
+  description: string | null
+  mime_type: string
+  status: "queued" | "transcribing" | "done" | "failed"
+  progress_pct: number
+  progress_message: string | null
+  transcript_text: string | null
+  transcript_preview: string | null
+  error: string | null
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export const listTranscriptions = () =>
+  api<Transcription[]>("/api/transcriptions")
+
+export const createTranscription = (file: File, description: string) => {
+  const body = new FormData()
+  body.append("file", file)
+  body.append("description", description)
+  return api<Transcription>("/api/transcriptions", { method: "POST", body })
+}
+
+export const transcriptionDownloadUrl = (id: string) =>
+  `/api/transcriptions/${id}/download`
 
 // ── search ────────────────────────────────────────────────────────────────
 

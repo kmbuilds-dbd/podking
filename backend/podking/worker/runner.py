@@ -23,6 +23,7 @@ from podking.models import (
     SummaryTag,
     Tag,
     Transcript,
+    Transcription,
     User,
     UserSettings,
 )
@@ -78,8 +79,13 @@ async def _process_next_job() -> None:
             await _run_feed_episode_job(job)
         elif job.kind == "tts":
             await _run_tts_job(job)
+        elif job.kind == "transcription":
+            await _run_transcription_job(job)
     except Exception as exc:
-        await _fail_job(job.id, str(exc))
+        if job.kind == "transcription":
+            await _fail_transcription_job(job.id, str(exc))
+        else:
+            await _fail_job(job.id, str(exc))
         log.exception("Job %s failed", job.id)
 
 
@@ -153,6 +159,67 @@ async def _update_job_status(job_id: uuid.UUID, status: str) -> None:
             job.status = status
             await db.commit()
             _emit(job_id, job)
+
+
+async def _mark_transcription_transcribing(job_id: uuid.UUID) -> None:
+    sm = get_sessionmaker()
+    async with sm() as db:
+        job = await db.get(Job, job_id)
+        if job is None or job.transcription_id is None:
+            raise RuntimeError("transcription job is missing its transcription")
+        transcription = await db.get(Transcription, job.transcription_id)
+        if transcription is None or transcription.user_id != job.user_id:
+            raise RuntimeError("transcription does not belong to job user")
+        job.status = "transcribing"
+        await db.commit()
+        _emit(job_id, job)
+
+
+async def _complete_transcription_job(
+    job_id: uuid.UUID, transcript_text: str, segments: object | None
+) -> None:
+    sm = get_sessionmaker()
+    async with sm() as db:
+        job = await db.get(Job, job_id)
+        if job is None or job.transcription_id is None:
+            return
+        transcription = await db.get(Transcription, job.transcription_id)
+        if transcription is None or transcription.user_id != job.user_id:
+            raise RuntimeError("transcription does not belong to job user")
+        now = datetime.now(UTC)
+        transcription.transcript_text = transcript_text
+        transcription.segments = segments
+        transcription.error = None
+        transcription.completed_at = now
+        job.status = "done"
+        job.progress_pct = 100
+        job.progress_message = "Done"
+        job.finished_at = now
+        await db.commit()
+        publish(job_id, {"status": "done", "progress_pct": 100,
+                         "progress_message": "Done", "error": None})
+
+
+async def _fail_transcription_job(job_id: uuid.UUID, error: str) -> None:
+    sm = get_sessionmaker()
+    async with sm() as db:
+        job = await db.get(Job, job_id)
+        if job is None:
+            return
+        now = datetime.now(UTC)
+        if job.transcription_id is not None:
+            transcription = await db.get(Transcription, job.transcription_id)
+            if transcription is not None and transcription.user_id == job.user_id:
+                transcription.error = error[:1000]
+                transcription.completed_at = now
+        job.status = "failed"
+        job.error = error[:1000]
+        job.finished_at = now
+        if job.archived_at is None:
+            job.archived_at = now
+        await db.commit()
+        publish(job_id, {"status": "failed", "progress_pct": job.progress_pct,
+                         "progress_message": None, "error": error[:1000]})
 
 
 # ── API key helpers ───────────────────────────────────────────────────────────
@@ -481,6 +548,41 @@ async def _run_feed_episode_job(job: Job) -> None:
         job.id, job.user_id, episode_id, transcript_text, job.analysis_prompt
     )
     await _complete_job(job.id, episode_id)
+
+
+async def _run_transcription_job(job: Job) -> None:
+    if job.transcription_id is None:
+        raise RuntimeError("transcription job missing transcription_id")
+
+    sm = get_sessionmaker()
+    async with sm() as db:
+        transcription = await db.get(Transcription, job.transcription_id)
+        if transcription is None or transcription.user_id != job.user_id:
+            raise RuntimeError("transcription does not belong to job user")
+        audio_path = Path(transcription.audio_path)
+        mime_type = transcription.mime_type
+
+    if not audio_path.is_file():
+        raise RuntimeError("uploaded audio file is missing")
+
+    settings = await _get_settings(job.user_id)
+    elevenlabs_key = _require_key(settings.elevenlabs_api_key_encrypted, "ElevenLabs")
+
+    await _update_progress(job.id, 40, "Transcribing with ElevenLabs Scribe…")
+    await _mark_transcription_transcribing(job.id)
+
+    from podking.worker.elevenlabs_client import transcribe
+
+    result = await transcribe(audio_path, elevenlabs_key, content_type=mime_type)
+    transcript_text = str(result.get("text") or "").strip()
+    if not transcript_text:
+        raise RuntimeError("ElevenLabs returned an empty transcript")
+
+    await _complete_transcription_job(
+        job.id,
+        transcript_text,
+        result.get("segments"),
+    )
 
 
 # ── Resummarize job ───────────────────────────────────────────────────────────

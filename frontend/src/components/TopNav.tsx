@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 const NAV_LINKS: { to: string; label: string; end?: boolean }[] = [
   { to: "/", label: "Library", end: true },
   { to: "/jobs", label: "Jobs" },
+  { to: "/transcriptions", label: "Transcriptions" },
   { to: "/subscriptions", label: "Subscriptions" },
 ]
 

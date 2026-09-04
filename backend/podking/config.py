@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:8000"
     allowed_emails: str = ""
     max_duration_seconds: int = 14400
+    max_transcription_size_bytes: int = 100 * 1024 * 1024
     audio_storage_path: str = "./data/audio"
     log_level: str = "INFO"
     listen_notes_api_key: str = ""

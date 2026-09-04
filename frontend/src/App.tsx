@@ -9,6 +9,7 @@ import Settings from "@/pages/Settings"
 import SummaryDetail from "@/pages/SummaryDetail"
 import Subscriptions from "@/pages/Subscriptions"
 import SubscriptionDetail from "@/pages/SubscriptionDetail"
+import Transcriptions from "@/pages/Transcriptions"
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const me = useMe()
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/jobs" element={<RequireAuth><Jobs /></RequireAuth>} />
+      <Route path="/transcriptions" element={<RequireAuth><Transcriptions /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
       <Route path="/summary/:id" element={<RequireAuth><SummaryDetail /></RequireAuth>} />
       <Route path="/subscriptions" element={<RequireAuth><Subscriptions /></RequireAuth>} />

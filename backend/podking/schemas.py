@@ -76,6 +76,7 @@ class JobResponse(BaseModel):
     kind: str
     source_url: str | None
     episode_id: uuid.UUID | None
+    transcription_id: uuid.UUID | None = None
     episode: JobEpisodeMini | None
     status: str
     progress_pct: int
@@ -210,6 +211,23 @@ class AudioJobResponse(BaseModel):
 
     job_id: uuid.UUID
     audio_episode_id: uuid.UUID | None
+
+
+class TranscriptionResponse(BaseModel):
+    id: uuid.UUID
+    job_id: uuid.UUID
+    original_filename: str
+    description: str | None
+    mime_type: str
+    status: str
+    progress_pct: int
+    progress_message: str | None
+    transcript_text: str | None
+    transcript_preview: str | None
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
 
 
 class MeResponse(BaseModel):

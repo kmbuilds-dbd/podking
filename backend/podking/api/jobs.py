@@ -10,7 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from podking.deps import current_user, get_db
-from podking.models import Episode, Job, PromptStyle, Subscription, Summary, Transcript, User
+from podking.models import (
+    Episode,
+    Job,
+    PromptStyle,
+    Subscription,
+    Summary,
+    Transcript,
+    Transcription,
+    User,
+)
 from podking.prompt_styles import ensure_general_prompt_style
 from podking.schemas import (
     JobCreate,
@@ -41,6 +50,7 @@ def _job_response(job: Job) -> JobResponse:
         kind=job.kind,
         source_url=job.source_url,
         episode_id=job.episode_id,
+        transcription_id=job.transcription_id,
         episode=episode_mini,
         status=job.status,
         progress_pct=job.progress_pct,
@@ -208,6 +218,12 @@ async def delete_job(
             if episode.audio_path:
                 Path(episode.audio_path).unlink(missing_ok=True)
             await db.delete(episode)  # cascades transcript, summaries, summary_tags
+
+    if job.transcription_id is not None:
+        transcription = await db.get(Transcription, job.transcription_id)
+        if transcription is not None and transcription.user_id == user.id:
+            Path(transcription.audio_path).unlink(missing_ok=True)
+            await db.delete(transcription)
 
     await db.delete(job)
     await db.commit()

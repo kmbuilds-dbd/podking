@@ -419,6 +419,7 @@ async def process_subscription_episode(
         kind=job.kind,
         source_url=job.source_url,
         episode_id=job.episode_id,
+        transcription_id=job.transcription_id,
         episode=None,
         status=job.status,
         progress_pct=job.progress_pct,

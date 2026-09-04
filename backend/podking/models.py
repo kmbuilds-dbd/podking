@@ -60,6 +60,9 @@ class User(Base):
     audio_episodes: Mapped[list[AudioEpisode]] = relationship(
         "AudioEpisode", back_populates="user"
     )
+    transcriptions: Mapped[list[Transcription]] = relationship(
+        "Transcription", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class UserSettings(Base):
@@ -139,7 +142,7 @@ class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('youtube', 'podcast', 'resummarize', 'feed_episode', 'tts')",
+            "kind IN ('youtube', 'podcast', 'resummarize', 'feed_episode', 'tts', 'transcription')",
             name="ck_job_kind",
         ),
         CheckConstraint(
@@ -164,6 +167,12 @@ class Job(Base):
         UUID(as_uuid=True),
         ForeignKey("summaries.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    transcription_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("transcriptions.id", ondelete="CASCADE"),
+        nullable=True,
+        unique=True,
     )
     analysis_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -190,6 +199,40 @@ class Job(Base):
     )
     audio_episode: Mapped[AudioEpisode | None] = relationship(
         "AudioEpisode", back_populates="job", uselist=False
+    )
+    transcription: Mapped[Transcription | None] = relationship(
+        "Transcription", back_populates="job", uselist=False
+    )
+
+
+class Transcription(Base):
+    __tablename__ = "transcriptions"
+    __table_args__ = (Index("ix_transcriptions_user_created", "user_id", text("created_at DESC")),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    original_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mime_type: Mapped[str] = mapped_column(String, nullable=False)
+    audio_path: Mapped[str] = mapped_column(Text, nullable=False)
+    transcript_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    segments: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship("User", back_populates="transcriptions")
+    job: Mapped[Job | None] = relationship(
+        "Job", back_populates="transcription", uselist=False
     )
 
 

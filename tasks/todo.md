@@ -1,5 +1,36 @@
 # Prompt styles implementation
 
+## Audio transcription feature
+
+- [x] Read the Poteto Mode Principles section in full.
+- [x] Inspect the current app, update local `main` from `origin/main`, and establish a clean baseline without overwriting the user's summaries edit.
+- [x] Complete the required `how` and `architect` design passes for the transcription flow.
+- [x] Throughput checkpoint: run blocking checks before fan-out.
+- [x] Throughput checkpoint: identify independent workstreams across backend, frontend, and verification assets.
+- [x] Throughput checkpoint: isolate shared mutable state before parallel work.
+- [x] Throughput checkpoint: choose the smallest safe decomposition and record why.
+- [x] Implement upload, ElevenLabs transcription, persisted history, descriptions, and text downloads.
+- [x] Build the project-local verification skill and feature map.
+- [x] Run backend, frontend, and real browser verification against the finished app.
+- [ ] Review the diff, commit the feature, and merge the verified changes to `main`.
+
+### Feature review
+
+- `98 passed, 1 warning` in the full Postgres-backed backend suite.
+- The project-local verification helper passed the full nine-test Playwright suite and nine focused transcription tests. It preserved `verification-artifacts/podking/run.log` and `server.log` after cleanup.
+- Frontend production build passed. Frontend lint retains the three pre-existing errors in `GenerateAudioButton.tsx`, `button.tsx`, and `Settings.tsx`. Changed frontend files add no lint errors.
+- Changed Python files are Ruff-clean. Repository-wide Ruff retains the eleven pre-existing findings recorded in `tasks/lessons.md`.
+- Independent comment review found no actionable comment or suppression findings. The configured independent Comment Sicko profile was unavailable, so the generic read-only review was the fallback.
+
+### Transcription design decision
+
+- Candidate A uses a new `transcriptions` row plus a `Job(kind="transcription")` row. The worker stores an upload under the configured audio directory, calls the existing ElevenLabs Scribe client, and writes the transcript back to the transcription row.
+- Candidate B uses separate request and result tables plus a second worker. It was rejected because the extra persistence and worker lifecycle add no user-visible value for this first release.
+- Chosen shape: a dedicated `Transcription` aggregate keyed to the user. Upload metadata and transcript result live there. The backing `Job.status` is the single lifecycle authority for `queued`, `transcribing`, `done`, and `failed`.
+- API boundary: `POST /api/transcriptions` accepts multipart audio and a description, `GET /api/transcriptions` lists the authenticated user's history, and `GET /api/transcriptions/{id}/download` returns `text/plain` with a safe `.txt` filename.
+- Frontend state: the new `/transcriptions` route owns selected file, description, submission state, and history query. Completed rows expose transcript preview and a native download link.
+- Shared writes are serialized through the existing single worker and per-row database updates. Upload files use user-scoped names derived from UUIDs, so concurrent users never share a path.
+
 - [x] Add prompt-style schema/model and migration backfill.
 - [x] Add prompt-style and subscription assignment APIs.
 - [x] Snapshot selected prompts when jobs are queued and use them in the worker.
