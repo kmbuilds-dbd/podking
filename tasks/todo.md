@@ -12,7 +12,7 @@
 - [x] Implement upload, ElevenLabs transcription, persisted history, descriptions, and text downloads.
 - [x] Build the project-local verification skill and feature map.
 - [x] Run backend, frontend, and real browser verification against the finished app.
-- [ ] Review the diff, commit the feature, and merge the verified changes to `main`.
+- [x] Review the diff, commit the feature, and merge the verified changes to `main`.
 
 ### Feature review
 
@@ -21,6 +21,7 @@
 - Frontend production build passed. Frontend lint retains the three pre-existing errors in `GenerateAudioButton.tsx`, `button.tsx`, and `Settings.tsx`. Changed frontend files add no lint errors.
 - Changed Python files are Ruff-clean. Repository-wide Ruff retains the eleven pre-existing findings recorded in `tasks/lessons.md`.
 - Independent comment review found no actionable comment or suppression findings. The configured independent Comment Sicko profile was unavailable, so the generic read-only review was the fallback.
+- Integration: commit `905e144` is pushed to `origin/main`.
 
 ### Transcription design decision
 
